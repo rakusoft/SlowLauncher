@@ -1,33 +1,72 @@
-<!DOCTYPE html>
+             <!DOCTYPE html>
 <html lang="de">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
     <style>
         :root { --bg-color: #000; --text-color: #fff; }
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        
         body {
             background-color: var(--bg-color);
             color: var(--text-color);
             font-family: sans-serif;
             margin: 0;
-            padding: 60px 40px 20px 20px;
-            display: flex;
-            flex-direction: column;
+            padding: 60px 50px 20px 20px; /* Platz für breitere Nav rechts */
             min-height: 100vh;
             user-select: none;
         }
-        .clock { font-size: 54px; font-weight: 200; margin-bottom: 30px; }
-        .app-list { list-style: none; padding: 0; margin: 0; }
-        .app-item { padding: 18px 5px; font-size: 20px; font-weight: 300; border-radius: 10px; }
-        .app-item:active { background: #222; }
-        .letter-header { color: #444; font-size: 14px; margin-top: 25px; padding-left: 5px; font-weight: bold; }
 
-        .alphabet-nav {
-            position: fixed; right: 5px; top: 50%; transform: translateY(-50%);
-            display: flex; flex-direction: column; height: 85vh;
-            font-size: 11px; color: #555; width: 30px; z-index: 100;
+        .clock { font-size: 54px; font-weight: 200; margin-bottom: 30px; }
+        
+        .app-list { list-style: none; padding: 0; margin: 0; }
+        
+        .app-item { 
+            padding: 16px 5px; 
+            font-size: 20px; 
+            font-weight: 300; 
+            border-radius: 10px;
+            transition: background 0.1s;
         }
-        .alphabet-nav span { flex: 1; display: flex; align-items: center; justify-content: center; }
+        .app-item:active { background: #222; }
+
+        .letter-header { 
+            color: #444; 
+            font-size: 14px; 
+            margin-top: 25px; 
+            padding-left: 5px; 
+            font-weight: bold;
+            scroll-margin-top: 70px; /* Verhindert, dass die Uhr den Header überdeckt */
+        }
+
+        /* Alphabet Navigation optimiert */
+        .alphabet-nav {
+            position: fixed;
+            right: 0;
+            top: 0;
+            height: 100vh;
+            width: 45px; /* Breitere Trefferfläche */
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            z-index: 100;
+            padding: 40px 0;
+        }
+
+        .alphabet-nav span {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            color: #666;
+            font-weight: bold;
+        }
+        
+        .alphabet-nav span:active {
+            color: #fff;
+            background: rgba(255,255,255,0.1);
+        }
     </style>
 </head>
 <body>
@@ -36,33 +75,48 @@
     <ul class="app-list" id="appList"><li>Lade Apps...</li></ul>
 
     <script>
-        // 1. Uhrzeit
-        setInterval(() => {
+        // Uhrzeit
+        function updateClock() {
             const now = new Date();
-            document.getElementById('clock').innerText = now.getHours().toString().padStart(2, '0') + ":" + now.getMinutes().toString().padStart(2, '0');
-        }, 1000);
+            document.getElementById('clock').innerText = 
+                now.getHours().toString().padStart(2, '0') + ":" + 
+                now.getMinutes().toString().padStart(2, '0');
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
 
-        // 2. Alphabet Navigation
+        // Alphabet Navigation erstellen
         const nav = document.getElementById('alphabetNav');
         "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("").forEach(let => {
             const span = document.createElement('span');
             span.innerText = let;
-            span.onclick = () => {
+            
+            // Scroll-Funktion
+            const scrollToLetter = (e) => {
+                e.preventDefault();
                 const target = document.getElementById('letter-' + let);
-                if (target) window.scrollTo({ top: target.offsetTop - 60, behavior: 'smooth' });
+                if (target) {
+                    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
             };
+
+            span.addEventListener('touchstart', scrollToLetter);
+            span.addEventListener('click', scrollToLetter);
             nav.appendChild(span);
         });
 
-        // 3. Echte Apps vom System empfangen
+        // Echte Apps rendern
         window.setApps = function(jsonString) {
             const apps = JSON.parse(jsonString);
             const list = document.getElementById('appList');
             list.innerHTML = '';
             let lastLetter = '';
 
+            // Sortieren
             apps.sort((a, b) => a.name.localeCompare(b.name)).forEach(app => {
                 const firstLetter = app.name[0].toUpperCase();
+                
+                // Header für neuen Buchstaben
                 if (firstLetter !== lastLetter && /^[A-Z]$/.test(firstLetter)) {
                     const header = document.createElement('li');
                     header.className = 'letter-header';
@@ -71,20 +125,25 @@
                     list.appendChild(header);
                     lastLetter = firstLetter;
                 }
+
                 const li = document.createElement('li');
                 li.className = 'app-item';
                 li.innerText = app.name;
-                li.onclick = () => AndroidBridge.launchApp(app.packageName);
+                li.onclick = () => {
+                    if (window.AndroidBridge) {
+                        AndroidBridge.launchApp(app.packageName);
+                    }
+                };
                 list.appendChild(li);
             });
         };
 
-        // Warte kurz, bis die Brücke bereit ist
+        // Apps beim Start abrufen
         setTimeout(() => {
             if (window.AndroidBridge) {
                 AndroidBridge.fetchApps();
             }
-        }, 500);
+        }, 300);
     </script>
 </body>
 </html>
