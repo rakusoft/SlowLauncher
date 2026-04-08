@@ -1,7 +1,7 @@
 {
   "appId": "com.rakusoft.slowlauncher",
   "appName": "Slow Launcher",
-  "webDir": ".",
+  "webDir": "www"
   "server": {
     "androidScheme": "https"
   }
