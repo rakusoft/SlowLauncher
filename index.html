@@ -3,33 +3,71 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Slow Launcher</title>
     <style>
-        :root { --bg-color: #000; --text-color: #fff; --accent-color: #444; }
+        :root { --bg-color: #000; --text-color: #fff; }
         body {
             background-color: var(--bg-color);
             color: var(--text-color);
             font-family: sans-serif;
             margin: 0;
-            padding: 60px 25px;
+            padding: 60px 40px 20px 20px; /* Platz für Alphabet rechts */
             display: flex;
             flex-direction: column;
             min-height: 100vh;
+            overflow-x: hidden;
         }
-        .clock { font-size: 54px; font-weight: 200; }
-        .app-list { list-style: none; padding: 20px 0; margin: 0; }
-        .app-item { padding: 15px 5px; font-size: 20px; font-weight: 300; border-bottom: 1px solid #222; }
+        .clock { font-size: 54px; font-weight: 200; margin-bottom: 30px; }
+        .app-list { list-style: none; padding: 0; margin: 0; }
+        .app-item { padding: 15px 5px; font-size: 20px; font-weight: 300; }
+        .letter-header { 
+            color: #555; 
+            font-size: 14px; 
+            margin-top: 20px; 
+            padding-left: 5px;
+            text-transform: uppercase;
+        }
+
+        /* Das Alphabet an der Seite */
+        .alphabet-nav {
+            position: fixed;
+            right: 5px;
+            top: 50%;
+            transform: translateY(-50%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            height: 80vh;
+            font-size: 10px;
+            color: #666;
+            text-align: center;
+            width: 30px;
+            z-index: 100;
+        }
+        .alphabet-nav span { padding: 2px 0; cursor: pointer; }
     </style>
 </head>
 <body>
     <div class="clock" id="clock">00:00</div>
-    <ul class="app-list" id="appList">
-        <li class="app-item">Telefon</li>
-        <li class="app-item">WhatsApp</li>
-        <li class="app-item">Browser</li>
-        <li class="app-item">Einstellungen</li>
-    </ul>
+    
+    <div class="alphabet-nav" id="alphabetNav"></div>
+    <ul class="app-list" id="appList"></ul>
+
     <script>
+        const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+        const nav = document.getElementById('alphabetNav');
+        const list = document.getElementById('appList');
+
+        // Alphabet-Leiste erstellen
+        alphabet.forEach(let => {
+            const span = document.createElement('span');
+            span.innerText = let;
+            span.onclick = () => {
+                const target = document.getElementById('letter-' + let);
+                if (target) target.scrollIntoView({ behavior: 'smooth' });
+            };
+            nav.appendChild(span);
+        });
+
         function updateClock() {
             const now = new Date();
             document.getElementById('clock').innerText = 
@@ -38,6 +76,37 @@
         }
         setInterval(updateClock, 1000);
         updateClock();
+
+        // Diese Funktion wird später von der Android-Brücke mit echten Daten gefüllt
+        function renderApps(apps) {
+            list.innerHTML = '';
+            let lastLetter = '';
+            
+            apps.forEach(app => {
+                const firstLetter = app.name[0].toUpperCase();
+                if (firstLetter !== lastLetter) {
+                    const header = document.createElement('li');
+                    header.className = 'letter-header';
+                    header.id = 'letter-' + firstLetter;
+                    header.innerText = firstLetter;
+                    list.appendChild(header);
+                    lastLetter = firstLetter;
+                }
+                const li = document.createElement('li');
+                li.className = 'app-item';
+                li.innerText = app.name;
+                li.onclick = () => window.LauncherBridge.launch(app.package);
+                list.appendChild(li);
+            });
+        }
+
+        // Test-Daten (bis die Brücke steht)
+        renderApps([
+            {name: "Browser", package: "com.android.chrome"},
+            {name: "Einstellungen", package: "com.android.settings"},
+            {name: "Telefon", package: "com.android.dialer"},
+            {name: "WhatsApp", package: "com.whatsapp"}
+        ]);
     </script>
 </body>
 </html>
