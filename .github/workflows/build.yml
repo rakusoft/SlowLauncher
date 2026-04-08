@@ -31,16 +31,16 @@ jobs:
           distribution: 'zulu'
           java-version: '17'
 
+      - name: Prepare Web Assets
+        run: |
+          mkdir www
+          cp index.html www/
+
       - name: Build App
         run: |
-          # Android-Ordner erstellen und synchronisieren
-          npx cap add android
+          npx cap add android || echo "Android already exists"
           npx cap sync android
-          
-          # Lizenzen akzeptieren (wichtig!)
-          yes | sdkmanager --licenses || echo "Lizenzen bereits akzeptiert"
-          
-          # Bauen
+          yes | sdkmanager --licenses || echo "Lizenzen akzeptiert"
           cd android && chmod +x gradlew && ./gradlew assembleDebug
 
       - name: Upload APK
