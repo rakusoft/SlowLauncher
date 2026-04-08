@@ -7,50 +7,40 @@
         :root { --bg-color: #000; --text-color: #fff; }
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         
-        body {
+        html, body {
             background-color: var(--bg-color);
             color: var(--text-color);
             font-family: sans-serif;
             margin: 0;
-            padding: 60px 50px 20px 20px; /* Platz für breitere Nav rechts */
-            min-height: 100vh;
-            user-select: none;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow-x: hidden;
+            scroll-behavior: smooth;
+        }
+
+        body {
+            padding: 60px 50px 20px 20px;
         }
 
         .clock { font-size: 54px; font-weight: 200; margin-bottom: 30px; }
-        
         .app-list { list-style: none; padding: 0; margin: 0; }
-        
-        .app-item { 
-            padding: 16px 5px; 
-            font-size: 20px; 
-            font-weight: 300; 
-            border-radius: 10px;
-            transition: background 0.1s;
-        }
-        .app-item:active { background: #222; }
-
+        .app-item { padding: 18px 5px; font-size: 20px; font-weight: 300; }
         .letter-header { 
-            color: #444; 
-            font-size: 14px; 
-            margin-top: 25px; 
-            padding-left: 5px; 
-            font-weight: bold;
-            scroll-margin-top: 70px; /* Verhindert, dass die Uhr den Header überdeckt */
+            color: #444; font-size: 14px; margin-top: 30px; 
+            font-weight: bold; scroll-margin-top: 80px; 
         }
 
-        /* Alphabet Navigation optimiert */
+        /* Alphabet-Leiste optimiert für "Gleiten" */
         .alphabet-nav {
             position: fixed;
-            right: 0;
-            top: 0;
-            height: 100vh;
-            width: 45px; /* Breitere Trefferfläche */
+            right: 0; top: 0;
+            width: 60px; height: 100vh;
             display: flex;
             flex-direction: column;
             justify-content: center;
-            z-index: 100;
-            padding: 40px 0;
+            z-index: 999;
+            touch-action: none; /* Verhindert normales Scrollen beim Gleiten */
         }
 
         .alphabet-nav span {
@@ -60,19 +50,15 @@
             justify-content: center;
             font-size: 11px;
             color: #666;
-            font-weight: bold;
-        }
-        
-        .alphabet-nav span:active {
-            color: #fff;
-            background: rgba(255,255,255,0.1);
+            pointer-events: none; /* Berührungen gehen ans Elternelement */
         }
     </style>
 </head>
 <body>
+
     <div class="clock" id="clock">00:00</div>
     <div class="alphabet-nav" id="alphabetNav"></div>
-    <ul class="app-list" id="appList"><li>Lade Apps...</li></ul>
+    <ul class="app-list" id="appList"></ul>
 
     <script>
         // Uhrzeit
@@ -85,38 +71,39 @@
         setInterval(updateClock, 1000);
         updateClock();
 
-        // Alphabet Navigation erstellen
+        // Alphabet-Leiste erstellen
         const nav = document.getElementById('alphabetNav');
-        "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("").forEach(let => {
+        const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+        chars.forEach(let => {
             const span = document.createElement('span');
             span.innerText = let;
-            
-            // Scroll-Funktion
-            const scrollToLetter = (e) => {
-                e.preventDefault();
-                const target = document.getElementById('letter-' + let);
-                if (target) {
-                    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                }
-            };
-
-            span.addEventListener('touchstart', scrollToLetter);
-            span.addEventListener('click', scrollToLetter);
+            span.setAttribute('data-letter', let);
             nav.appendChild(span);
         });
 
-        // Echte Apps rendern
+        // Gleit-Logik (Niagara Style)
+        function handleTouch(e) {
+            const touch = e.touches[0];
+            const element = document.elementFromPoint(touch.clientX, touch.clientY);
+            if (element && element.getAttribute('data-letter')) {
+                const letter = element.getAttribute('data-letter');
+                const target = document.getElementById('letter-' + letter);
+                if (target) target.scrollIntoView({ block: 'start' });
+            }
+        }
+
+        nav.addEventListener('touchstart', handleTouch);
+        nav.addEventListener('touchmove', handleTouch);
+
+        // Apps rendern
         window.setApps = function(jsonString) {
             const apps = JSON.parse(jsonString);
             const list = document.getElementById('appList');
             list.innerHTML = '';
             let lastLetter = '';
 
-            // Sortieren
             apps.sort((a, b) => a.name.localeCompare(b.name)).forEach(app => {
                 const firstLetter = app.name[0].toUpperCase();
-                
-                // Header für neuen Buchstaben
                 if (firstLetter !== lastLetter && /^[A-Z]$/.test(firstLetter)) {
                     const header = document.createElement('li');
                     header.className = 'letter-header';
@@ -125,25 +112,15 @@
                     list.appendChild(header);
                     lastLetter = firstLetter;
                 }
-
                 const li = document.createElement('li');
                 li.className = 'app-item';
                 li.innerText = app.name;
-                li.onclick = () => {
-                    if (window.AndroidBridge) {
-                        AndroidBridge.launchApp(app.packageName);
-                    }
-                };
+                li.onclick = () => AndroidBridge.launchApp(app.packageName);
                 list.appendChild(li);
             });
         };
 
-        // Apps beim Start abrufen
-        setTimeout(() => {
-            if (window.AndroidBridge) {
-                AndroidBridge.fetchApps();
-            }
-        }, 300);
+        setTimeout(() => { if (window.AndroidBridge) AndroidBridge.fetchApps(); }, 300);
     </script>
 </body>
 </html>
