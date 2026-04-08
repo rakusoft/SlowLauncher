@@ -7,20 +7,16 @@
         :root { --bg-color: #000; --text-color: #fff; }
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         
-        html, body {
+        body {
             background-color: var(--bg-color);
             color: var(--text-color);
             font-family: sans-serif;
             margin: 0;
-            padding: 0;
-            width: 100%;
-            height: 100%;
+            padding: 60px 60px 20px 20px;
+            min-height: 100vh;
             overflow-x: hidden;
-            scroll-behavior: smooth;
-        }
-
-        body {
-            padding: 60px 50px 20px 20px;
+            user-select: none;
+            scroll-behavior: auto; /* Schnelleres Springen */
         }
 
         .clock { font-size: 54px; font-weight: 200; margin-bottom: 30px; }
@@ -28,74 +24,90 @@
         .app-item { padding: 18px 5px; font-size: 20px; font-weight: 300; }
         .letter-header { 
             color: #444; font-size: 14px; margin-top: 30px; 
-            font-weight: bold; scroll-margin-top: 80px; 
+            font-weight: bold; scroll-margin-top: 70px; 
         }
 
-        /* Alphabet-Leiste optimiert für "Gleiten" */
-        .alphabet-nav {
+        /* Die aktive Touch-Zone rechts */
+        #nav-zone {
             position: fixed;
             right: 0; top: 0;
-            width: 60px; height: 100vh;
+            width: 80px; /* Schön breit für den Daumen */
+            height: 100vh;
+            z-index: 1000;
             display: flex;
             flex-direction: column;
             justify-content: center;
-            z-index: 999;
-            touch-action: none; /* Verhindert normales Scrollen beim Gleiten */
+            background: rgba(255,255,255,0.01); /* Fast unsichtbar, aber fangbar */
+            touch-action: none;
         }
 
-        .alphabet-nav span {
+        .nav-letter {
             flex: 1;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 11px;
-            color: #666;
-            pointer-events: none; /* Berührungen gehen ans Elternelement */
+            font-size: 10px;
+            color: #555;
+            pointer-events: none; /* Berührungen gehen direkt an die nav-zone */
         }
     </style>
 </head>
 <body>
 
     <div class="clock" id="clock">00:00</div>
-    <div class="alphabet-nav" id="alphabetNav"></div>
+    <div id="nav-zone"></div>
     <ul class="app-list" id="appList"></ul>
 
     <script>
-        // Uhrzeit
-        function updateClock() {
+        const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+        const navZone = document.getElementById('nav-zone');
+        
+        // 1. Uhrzeit
+        setInterval(() => {
             const now = new Date();
             document.getElementById('clock').innerText = 
                 now.getHours().toString().padStart(2, '0') + ":" + 
                 now.getMinutes().toString().padStart(2, '0');
-        }
-        setInterval(updateClock, 1000);
-        updateClock();
+        }, 1000);
 
-        // Alphabet-Leiste erstellen
-        const nav = document.getElementById('alphabetNav');
-        const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
-        chars.forEach(let => {
-            const span = document.createElement('span');
-            span.innerText = let;
-            span.setAttribute('data-letter', let);
-            nav.appendChild(span);
+        // 2. Alphabet Leiste optisch aufbauen
+        chars.forEach(c => {
+            const s = document.createElement('div');
+            s.className = 'nav-letter';
+            s.innerText = c;
+            navZone.appendChild(s);
         });
 
-        // Gleit-Logik (Niagara Style)
-        function handleTouch(e) {
+        // 3. Die Logik: Wo ist der Finger?
+        function jumpToLetter(e) {
             const touch = e.touches[0];
-            const element = document.elementFromPoint(touch.clientX, touch.clientY);
-            if (element && element.getAttribute('data-letter')) {
-                const letter = element.getAttribute('data-letter');
-                const target = document.getElementById('letter-' + letter);
-                if (target) target.scrollIntoView({ block: 'start' });
+            const bounds = navZone.getBoundingClientRect();
+            
+            // Relative Position im Alphabet berechnen (0 bis 1)
+            let relY = (touch.clientY - bounds.top) / bounds.height;
+            relY = Math.max(0, Math.min(0.99, relY)); // Begrenzen
+            
+            const index = Math.floor(relY * chars.length);
+            const letter = chars[index];
+            
+            const target = document.getElementById('letter-' + letter);
+            if (target) {
+                // Sofortiger Sprung ohne "smooth", damit es direkt reagiert
+                window.scrollTo(0, target.offsetTop - 70);
             }
         }
 
-        nav.addEventListener('touchstart', handleTouch);
-        nav.addEventListener('touchmove', handleTouch);
+        navZone.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            jumpToLetter(e);
+        });
 
-        // Apps rendern
+        navZone.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            jumpToLetter(e);
+        });
+
+        // 4. Apps vom System empfangen
         window.setApps = function(jsonString) {
             const apps = JSON.parse(jsonString);
             const list = document.getElementById('appList');
@@ -120,6 +132,7 @@
             });
         };
 
+        // Start-Abfrage
         setTimeout(() => { if (window.AndroidBridge) AndroidBridge.fetchApps(); }, 300);
     </script>
 </body>
