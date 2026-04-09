@@ -6,35 +6,23 @@
     <style>
         :root { --bg-color: #000; --text-color: #fff; }
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-        
         body {
-            background-color: var(--bg-color);
-            color: var(--text-color);
-            font-family: sans-serif;
-            margin: 0;
-            padding: 80px 60px 200px 30px; /* Viel Platz unten zum Scrollen */
-            min-height: 100vh;
-            overflow-x: hidden;
-            user-select: none;
+            background-color: var(--bg-color); color: var(--text-color);
+            font-family: sans-serif; margin: 0; padding: 80px 70px 300px 30px;
+            min-height: 100vh; overflow-x: hidden; user-select: none;
         }
-
         .clock { font-size: 58px; font-weight: 200; margin-bottom: 40px; }
-        
         .app-list { list-style: none; padding: 0; margin: 0; }
-        .app-item { padding: 15px 0; font-size: 22px; font-weight: 300; display: flex; align-items: center; }
-        .app-item:active { color: #888; }
-
-        .section-header { color: #444; font-size: 14px; margin-top: 40px; font-weight: bold; scroll-margin-top: 80px; }
-        .letter-header { color: #444; font-size: 14px; margin-top: 30px; font-weight: bold; scroll-margin-top: 80px; }
-
-        #nav-zone {
-            position: fixed; right: 0; top: 0; width: 70px; height: 100vh;
-            z-index: 1000; display: flex; flex-direction: column; justify-content: center;
-            touch-action: none;
+        .app-item { padding: 18px 0; font-size: 22px; font-weight: 300; }
+        .letter-header { 
+            color: #555; font-size: 16px; margin-top: 40px; 
+            font-weight: bold; scroll-margin-top: 100px;
         }
-
+        #nav-zone {
+            position: fixed; right: 0; top: 0; width: 60px; height: 100vh;
+            z-index: 1000; display: flex; flex-direction: column; touch-action: none;
+        }
         .nav-letter { flex: 1; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #444; }
-
         #letter-overlay {
             position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
             font-size: 120px; color: rgba(255,255,255,0.2); display: none; pointer-events: none;
@@ -42,34 +30,27 @@
     </style>
 </head>
 <body>
-
     <div class="clock" id="clock">00:00</div>
     <div id="letter-overlay"></div>
     <div id="nav-zone"></div>
-    <ul class="app-list" id="appList"><li>Lade Programme...</li></ul>
+    <ul class="app-list" id="appList"></ul>
 
     <script>
         const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
         const navZone = document.getElementById('nav-zone');
         const overlay = document.getElementById('letter-overlay');
-        
-        // --- FAVORITEN (Paketnamen hier anpassen) ---
-        const favorites = ["com.android.chrome", "com.whatsapp", "com.android.settings", "com.android.dialer"];
 
-        // 1. Uhrzeit
         setInterval(() => {
             const now = new Date();
             document.getElementById('clock').innerText = now.getHours().toString().padStart(2, '0') + ":" + now.getMinutes().toString().padStart(2, '0');
         }, 1000);
 
-        // 2. Alphabet Leiste
         chars.forEach(c => {
             const s = document.createElement('div');
             s.className = 'nav-letter'; s.innerText = c;
             navZone.appendChild(s);
         });
 
-        // 3. Navigation
         function scrub(e) {
             const touch = e.touches[0];
             const bounds = navZone.getBoundingClientRect();
@@ -80,10 +61,10 @@
             overlay.innerText = letter;
             overlay.style.display = 'block';
 
-            const target = document.getElementById('letter-' + letter);
+            const target = document.getElementById('header-' + letter);
             if (target) {
-                // "auto" statt "smooth" für verzögerungsfreies Springen
-                target.scrollIntoView({ behavior: 'auto', block: 'start' });
+                const y = target.getBoundingClientRect().top + window.pageYOffset - 90;
+                window.scrollTo({ top: y, behavior: 'auto' });
             }
         }
 
@@ -91,45 +72,31 @@
         navZone.addEventListener('touchmove', (e) => { e.preventDefault(); scrub(e); });
         navZone.addEventListener('touchend', () => { overlay.style.display = 'none'; });
 
-        // 4. Alles in einer Liste rendern
         window.setApps = function(json) {
-            const apps = JSON.parse(json).sort((a, b) => a.name.localeCompare(b.name));
+            const apps = JSON.parse(json);
             const list = document.getElementById('appList');
             list.innerHTML = '';
-
-            // Favoriten zuerst
-            const favApps = apps.filter(a => favorites.includes(a.packageName));
-            if (favApps.length > 0) {
-                const head = document.createElement('li'); head.className = 'section-header'; head.innerText = 'FAVORITEN';
-                list.appendChild(head);
-                favApps.forEach(app => list.appendChild(createAppItem(app)));
-            }
-
-            // Alle Apps mit Buchstaben-Ankern
             let lastLetter = '';
+
             apps.forEach(app => {
                 const firstLetter = app.name[0].toUpperCase();
                 if (firstLetter !== lastLetter && /^[A-Z]$/.test(firstLetter)) {
                     const head = document.createElement('li');
                     head.className = 'letter-header';
-                    head.id = 'letter-' + firstLetter;
+                    head.id = 'header-' + firstLetter;
                     head.innerText = firstLetter;
                     list.appendChild(head);
                     lastLetter = firstLetter;
                 }
-                list.appendChild(createAppItem(app));
+                const li = document.createElement('li');
+                li.className = 'app-item';
+                li.innerText = app.name;
+                li.onclick = () => AndroidBridge.launchApp(app.packageName);
+                list.appendChild(li);
             });
         };
 
-        function createAppItem(app) {
-            const li = document.createElement('li');
-            li.className = 'app-item';
-            li.innerText = app.name;
-            li.onclick = () => AndroidBridge.launchApp(app.packageName);
-            return li;
-        }
-
-        setTimeout(() => { if (window.AndroidBridge) AndroidBridge.fetchApps(); }, 300);
+        setTimeout(() => { if (window.AndroidBridge) AndroidBridge.fetchApps(); }, 400);
     </script>
 </body>
 </html>
