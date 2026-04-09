@@ -5,9 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
     <style>
         :root { 
-            /* HIER DEIN BILD EINTRAGEN */
-            --bg-image: url('https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=2564&auto=format&fit=crop');
-            
             --text-main: rgba(255,255,255,0.95);
             --text-sec: rgba(255,255,255,0.4);
             --nav-text: rgba(255,255,255,0.15);
@@ -19,7 +16,6 @@
         
         body {
             background-color: #000;
-            background-image: var(--bg-image);
             background-size: cover;
             background-position: center;
             background-attachment: fixed;
@@ -32,6 +28,7 @@
             user-select: none;
         }
 
+        /* Abdunklung für das Hintergrundbild */
         body::before {
             content: "";
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
@@ -39,12 +36,7 @@
             z-index: -1;
         }
 
-        #top-zone {
-            padding-top: 60px;
-            margin-bottom: 30px;
-            cursor: pointer;
-        }
-
+        #top-zone { padding-top: 60px; margin-bottom: 30px; }
         .clock { font-size: 68px; font-weight: 200; margin-bottom: 5px; }
         .date { font-size: 16px; color: var(--text-sec); text-transform: uppercase; letter-spacing: 1.5px; }
         
@@ -54,41 +46,21 @@
 
         .header { color: var(--text-sec); font-size: 14px; margin-top: 45px; font-weight: bold; text-transform: uppercase; scroll-margin-top: 100px; }
         
-        /* Das Alphabet beginnt nun erst bei 25% der Höhe */
-        #nav-zone {
-            position: fixed; 
-            right: 0; 
-            top: 25vh; 
-            width: 80px; 
-            height: 70vh;
-            z-index: 1000; 
-            display: flex; 
-            flex-direction: column; 
-            justify-content: center;
-            touch-action: none; 
-            padding-bottom: 40px;
-        }
+        /* Navigation & Reset-Lücke */
+        #nav-zone { position: fixed; right: 0; top: 25vh; width: 80px; height: 70vh; z-index: 1000; display: flex; flex-direction: column; justify-content: center; touch-action: none; padding-bottom: 40px; }
+        #reset-gap { position: fixed; right: 0; top: 0; width: 80px; height: 25vh; z-index: 1001; }
 
-        /* Die "Lücke" oben rechts zum Zurücksetzen */
-        #reset-gap {
-            position: fixed;
-            right: 0;
-            top: 0;
-            width: 80px;
-            height: 25vh;
-            z-index: 1001;
-            cursor: pointer;
-        }
+        .nav-letter { flex: 1; display: flex; align-items: center; justify-content: center; font-size: 10px; color: var(--nav-text); font-weight: bold; transition: transform 0.08s ease-out, color 0.1s; will-change: transform; }
 
-        .nav-letter {
-            flex: 1; display: flex; align-items: center; justify-content: center;
-            font-size: 10px; color: var(--nav-text); font-weight: bold;
-            transition: transform 0.08s ease-out, color 0.1s;
-            will-change: transform;
-        }
+        .show-only-favs .all-apps-item, .show-only-favs .letter-header { display: none; }
 
-        .show-only-favs .all-apps-item, 
-        .show-only-favs .letter-header { display: none; }
+        /* Einstellungen Overlay */
+        #settings-modal {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9); z-index: 2000;
+            display: none; flex-direction: column; padding: 50px 30px;
+        }
+        .btn { background: #333; color: #fff; border: none; padding: 20px; border-radius: 15px; font-size: 18px; margin-bottom: 20px; }
     </style>
 </head>
 <body class="show-only-favs" id="mainBody">
@@ -103,13 +75,58 @@
     <div id="nav-zone"></div>
     <ul class="app-list" id="appList"></ul>
 
+    <div id="settings-modal">
+        <h2 style="font-weight: 200; margin-bottom: 40px;">Einstellungen</h2>
+        <button class="btn" onclick="document.getElementById('bgInput').click()">Hintergrund aus Galerie wählen</button>
+        <button class="btn" onclick="clearBg()">Hintergrund zurücksetzen (Schwarz)</button>
+        <button class="btn" onclick="closeSettings()" style="background: #555; margin-top: auto;">Schließen</button>
+        <input type="file" id="bgInput" style="display:none" accept="image/*" onchange="saveBg(this)">
+    </div>
+
     <script>
         const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
         const navZone = document.getElementById('nav-zone');
         const body = document.getElementById('mainBody');
-        let touchStartX = 0;
         
+        // --- FAVORITEN ---
         const myFavorites = ["Telefon", "WhatsApp", "Chrome", "Karten", "Einstellungen", "Galerie"];
+
+        // Hintergrund beim Start laden
+        const savedBg = localStorage.getItem('customBg');
+        if (savedBg) document.body.style.backgroundImage = `url(${savedBg})`;
+
+        function saveBg(input) {
+            const file = input.files[0];
+            const reader = new FileReader();
+            reader.onloadend = function() {
+                // Wir verkleinern das Bild etwas, damit der Speicher nicht überläuft
+                const img = new Image();
+                img.onload = function() {
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    const maxW = 1080; 
+                    const scale = maxW / img.width;
+                    canvas.width = maxW;
+                    canvas.height = img.height * scale;
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                    const base64 = canvas.toDataURL('image/jpeg', 0.7);
+                    localStorage.setItem('customBg', base64);
+                    document.body.style.backgroundImage = `url(${base64})`;
+                    closeSettings();
+                };
+                img.src = reader.result;
+            }
+            reader.readAsDataURL(file);
+        }
+
+        function clearBg() {
+            localStorage.removeItem('customBg');
+            document.body.style.backgroundImage = 'none';
+            closeSettings();
+        }
+
+        function openSettings() { document.getElementById('settings-modal').style.display = 'flex'; }
+        function closeSettings() { document.getElementById('settings-modal').style.display = 'none'; }
 
         function updateTime() {
             const now = new Date();
@@ -129,17 +146,6 @@
             body.classList.add('show-only-favs');
             window.scrollTo(0, 0);
         }
-
-        document.addEventListener('touchstart', e => {
-            touchStartX = e.changedTouches[0].screenX;
-        });
-
-        document.addEventListener('touchend', e => {
-            let touchEndX = e.changedTouches[0].screenX;
-            if (touchEndX - touchStartX > 150) {
-                resetToFavs();
-            }
-        });
 
         function applyWave(touchY) {
             const letters = document.querySelectorAll('.nav-letter');
@@ -164,7 +170,6 @@
             const touch = e.touches[0];
             body.classList.remove('show-only-favs');
             applyWave(touch.clientY);
-            
             const bounds = navZone.getBoundingClientRect();
             let relY = (touch.clientY - bounds.top) / bounds.height;
             relY = Math.max(0, Math.min(0.99, relY));
@@ -176,7 +181,6 @@
         navZone.addEventListener('touchstart', handleScrub);
         navZone.addEventListener('touchmove', handleScrub);
         navZone.addEventListener('touchend', () => {
-            // NUR die Welle optisch zurücksetzen. Die Liste BLEIBT offen.
             document.querySelectorAll('.nav-letter').forEach(l => {
                 l.style.transform = `scale(1) translateX(0px)`;
                 l.style.color = `var(--nav-text)`;
@@ -187,7 +191,21 @@
             const apps = JSON.parse(json);
             const list = document.getElementById('appList');
             list.innerHTML = '';
-            apps.filter(a => myFavorites.includes(a.name)).forEach(app => list.appendChild(createItem(app, "fav-item")));
+            
+            // Favoriten
+            apps.filter(a => myFavorites.includes(a.name)).forEach(app => {
+                list.appendChild(createItem(app, "fav-item"));
+            });
+
+            // Spezieller Button für Einstellungen am Ende der Favoriten
+            const setBtn = document.createElement('li');
+            setBtn.className = 'app-item fav-item';
+            setBtn.style.color = 'var(--text-sec)';
+            setBtn.innerHTML = `<span style="font-size: 30px; width: 34px; text-align: center;">⚙</span> <span>Launcher-Einstellungen</span>`;
+            setBtn.onclick = openSettings;
+            list.appendChild(setBtn);
+
+            // Gesamte Liste
             let last = '';
             apps.forEach(app => {
                 const first = app.name[0].toUpperCase();
@@ -205,7 +223,6 @@
             li.innerHTML = `<img class="app-icon" src="data:image/png;base64,${app.icon}"> <span>${app.name}</span>`;
             li.onclick = () => {
                 AndroidBridge.launchApp(app.packageName);
-                // Beim Zurückkehren wieder Favoriten zeigen
                 setTimeout(resetToFavs, 1000);
             };
             return li;
