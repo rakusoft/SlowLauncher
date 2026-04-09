@@ -4,54 +4,104 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
     <style>
-        :root { --bg-color: #000; --text-color: #fff; }
+        :root { --bg-color: #000; --text-color: #fff; --secondary-text: #666; }
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        
         body {
-            background-color: var(--bg-color); color: var(--text-color);
-            font-family: sans-serif; margin: 0; padding: 80px 70px 300px 30px;
-            min-height: 100vh; overflow-x: hidden; user-select: none;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: sans-serif;
+            margin: 0;
+            padding: 80px 70px 300px 30px;
+            min-height: 100vh;
+            overflow-x: hidden;
+            user-select: none;
         }
-        .clock { font-size: 58px; font-weight: 200; margin-bottom: 40px; }
+
+        /* Uhrzeit & Datum */
+        .clock { font-size: 64px; font-weight: 200; margin-bottom: 10px; }
+        .date { font-size: 18px; color: var(--secondary-text); margin-bottom: 50px; }
+        
+        /* App Liste */
         .app-list { list-style: none; padding: 0; margin: 0; }
-        .app-item { padding: 18px 0; font-size: 22px; font-weight: 300; }
-        .letter-header { 
-            color: #555; font-size: 16px; margin-top: 40px; 
-            font-weight: bold; scroll-margin-top: 100px;
+        .app-item { 
+            padding: 20px 0; 
+            font-size: 24px; 
+            font-weight: 300; 
+            opacity: 0.9;
         }
+        .app-item:active { opacity: 0.5; }
+
+        .header { 
+            color: var(--secondary-text); 
+            font-size: 14px; 
+            margin-top: 40px; 
+            font-weight: bold; 
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            scroll-margin-top: 100px;
+        }
+
+        /* Alphabet-Leiste (Rechts) */
         #nav-zone {
-            position: fixed; right: 0; top: 0; width: 60px; height: 100vh;
+            position: fixed; right: 0; top: 0; width: 70px; height: 100vh;
             z-index: 1000; display: flex; flex-direction: column; touch-action: none;
         }
-        .nav-letter { flex: 1; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #444; }
+        .nav-letter { flex: 1; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #333; }
+
+        /* Große Anzeige in der Mitte beim Scrollen */
         #letter-overlay {
             position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            font-size: 120px; color: rgba(255,255,255,0.2); display: none; pointer-events: none;
+            font-size: 150px; color: rgba(255,255,255,0.15); display: none; pointer-events: none;
+            font-weight: bold;
         }
+
+        /* Versteckt die volle Liste am Anfang */
+        .full-list-hidden .letter-header, 
+        .full-list-hidden .all-apps-item { display: none; }
     </style>
 </head>
-<body>
+<body class="full-list-hidden">
+
     <div class="clock" id="clock">00:00</div>
+    <div class="date" id="date">Donnerstag, 9. April</div>
+    
     <div id="letter-overlay"></div>
     <div id="nav-zone"></div>
+    
     <ul class="app-list" id="appList"></ul>
 
     <script>
         const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
         const navZone = document.getElementById('nav-zone');
         const overlay = document.getElementById('letter-overlay');
+        const body = document.body;
+        
+        // HIER DEINE FAVORITEN EINTRAGEN (Exakte Namen aus deiner Liste)
+        const myFavorites = ["Telefon", "WhatsApp", "Karten", "Chrome", "Einstellungen", "Galerie"];
 
-        setInterval(() => {
+        // Uhr & Datum
+        function updateTime() {
             const now = new Date();
             document.getElementById('clock').innerText = now.getHours().toString().padStart(2, '0') + ":" + now.getMinutes().toString().padStart(2, '0');
-        }, 1000);
+            const options = { weekday: 'long', day: 'numeric', month: 'long' };
+            document.getElementById('date').innerText = now.toLocaleDateString('de-DE', options);
+        }
+        setInterval(updateTime, 1000);
+        updateTime();
 
+        // Alphabet Leiste
         chars.forEach(c => {
             const s = document.createElement('div');
             s.className = 'nav-letter'; s.innerText = c;
             navZone.appendChild(s);
         });
 
+        // Scroll & Drawer Logik
         function scrub(e) {
+            e.preventDefault();
+            body.classList.remove('full-list-hidden'); // Zeige alle Apps beim Berühren
+            
             const touch = e.touches[0];
             const bounds = navZone.getBoundingClientRect();
             let relY = (touch.clientY - bounds.top) / bounds.height;
@@ -68,33 +118,53 @@
             }
         }
 
-        navZone.addEventListener('touchstart', (e) => { e.preventDefault(); scrub(e); });
-        navZone.addEventListener('touchmove', (e) => { e.preventDefault(); scrub(e); });
-        navZone.addEventListener('touchend', () => { overlay.style.display = 'none'; });
+        navZone.addEventListener('touchstart', scrub);
+        navZone.addEventListener('touchmove', scrub);
+        navZone.addEventListener('touchend', () => {
+            overlay.style.display = 'none';
+            // Optional: Wenn du willst, dass er nach dem Loslassen wieder nur Favoriten zeigt,
+            // aktiviere die nächste Zeile. Niagara lässt die Liste aber meist offen.
+            // body.classList.add('full-list-hidden'); 
+        });
 
+        // Apps vom System
         window.setApps = function(json) {
             const apps = JSON.parse(json);
             const list = document.getElementById('appList');
             list.innerHTML = '';
-            let lastLetter = '';
 
+            // 1. Favoriten Sektion
+            const favHead = document.createElement('li');
+            favHead.className = 'header'; favHead.innerText = 'Favoriten';
+            list.appendChild(favHead);
+
+            apps.filter(a => myFavorites.includes(a.name)).forEach(app => {
+                list.appendChild(createAppItem(app, "fav-item"));
+            });
+
+            // 2. Gesamte Liste (wird durch CSS gesteuert)
+            let lastLetter = '';
             apps.forEach(app => {
                 const firstLetter = app.name[0].toUpperCase();
                 if (firstLetter !== lastLetter && /^[A-Z]$/.test(firstLetter)) {
                     const head = document.createElement('li');
-                    head.className = 'letter-header';
+                    head.className = 'header letter-header';
                     head.id = 'header-' + firstLetter;
                     head.innerText = firstLetter;
                     list.appendChild(head);
                     lastLetter = firstLetter;
                 }
-                const li = document.createElement('li');
-                li.className = 'app-item';
-                li.innerText = app.name;
-                li.onclick = () => AndroidBridge.launchApp(app.packageName);
-                list.appendChild(li);
+                list.appendChild(createAppItem(app, "all-apps-item"));
             });
         };
+
+        function createAppItem(app, className) {
+            const li = document.createElement('li');
+            li.className = 'app-item ' + className;
+            li.innerText = app.name;
+            li.onclick = () => AndroidBridge.launchApp(app.packageName);
+            return li;
+        }
 
         setTimeout(() => { if (window.AndroidBridge) AndroidBridge.fetchApps(); }, 400);
     </script>
