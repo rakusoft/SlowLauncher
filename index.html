@@ -5,92 +5,70 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
     <style>
         :root { 
-            /* Premium Dark Theme */
-            --bg-top: #0F0F0F;
-            --bg-bottom: #1A1A1A;
+            /* Sichtbarerer Hintergrund: Tiefes Blau/Violett zu Dunkelgrau */
+            --bg-top: #1a1c2c; 
+            --bg-bottom: #0f0f0f;
             --text-main: rgba(255,255,255,0.95);
             --text-sec: rgba(255,255,255,0.4);
-            --nav-text: rgba(255,255,255,0.2);
-            --wave-range: 120px; /* Wie weit sich die Welle ausbreitet */
-            --wave-scale: 2.5;   /* Wie stark die Buchstaben wachsen */
+            --nav-text: rgba(255,255,255,0.15);
+            
+            /* Wellen-Parameter für den "Big Wave" Effekt */
+            --wave-range: 180px;  /* Größerer Bereich der beeinflusst wird */
+            --wave-scale: 4.5;    /* Massive Vergrößerung */
         }
         
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; outline: none; }
         
         body {
-            /* Hintergrund-Option 1: Edler Gradient */
-            background: linear-gradient(135deg, var(--bg-top) 0%, var(--bg-bottom) 100%) fixed;
-            
-            /* Hintergrund-Option 2 (BILD): Einfach die Zeile unten entkommentieren und URL eintragen */
-            /* background-image: url('YOUR_IMAGE_URL_HERE'); background-size: cover; background-position: center; background-attachment: fixed; */
+            /* Hintergrund als kräftigerer Verlauf */
+            background: linear-gradient(180deg, var(--bg-top) 0%, var(--bg-bottom) 100%) no-repeat;
+            background-attachment: fixed;
+            background-color: #000;
             
             color: var(--text-main);
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+            font-family: sans-serif;
             margin: 0;
-            padding: 90px 70px 300px 30px;
+            padding: 90px 80px 300px 30px;
             min-height: 100vh;
             overflow-x: hidden;
             user-select: none;
-            scroll-behavior: auto;
         }
 
-        /* Fügt eine leichte Verdunklung hinzu, falls ein Bild genutzt wird */
-        body::before {
-            content: "";
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.1); /* Erhöhe den Wert (z.B. 0.4), wenn das Hintergrundbild zu hell ist */
-            z-index: -1;
-        }
-
-        /* Uhrzeit & Datum (dezenter) */
-        .clock { font-size: 68px; font-weight: 200; margin-bottom: 5px; color: rgba(255,255,255,0.9); }
-        .date { font-size: 16px; color: var(--text-sec); margin-bottom: 50px; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 300; }
+        .clock { font-size: 68px; font-weight: 200; margin-bottom: 5px; }
+        .date { font-size: 16px; color: var(--text-sec); margin-bottom: 50px; text-transform: uppercase; letter-spacing: 1.5px; }
         
-        /* App Liste */
         .app-list { list-style: none; padding: 0; margin: 0; }
         .app-item { 
             padding: 16px 0; font-size: 23px; font-weight: 300; 
             display: flex; align-items: center; gap: 20px;
-            transition: color 0.1s;
         }
-        .app-item:active { color: var(--text-sec); }
-        .app-icon { 
-            width: 32px; height: 32px; border-radius: 9px; 
-            filter: grayscale(100%); opacity: 0.8;
-            transition: filter 0.2s;
-        }
-        .app-item:active .app-icon { filter: grayscale(0%); opacity: 1; }
+        .app-icon { width: 34px; height: 34px; border-radius: 10px; filter: grayscale(100%); opacity: 0.8; }
 
         .header { 
             color: var(--text-sec); font-size: 14px; margin-top: 45px; 
             font-weight: bold; text-transform: uppercase; scroll-margin-top: 100px;
-            letter-spacing: 2px;
         }
         
-        /* Das Alphabet rechts (Touch Zone) */
         #nav-zone {
-            position: fixed; right: 0; top: 0; width: 65px; height: 100vh;
+            position: fixed; right: 0; top: 0; width: 80px; height: 100vh;
             z-index: 1000; display: flex; flex-direction: column; justify-content: center;
-            touch-action: none; padding: 50px 0;
+            touch-action: none; padding: 40px 0;
         }
 
-        /* Die einzelnen Buchstaben (Wellen-Effekt) */
         .nav-letter {
             flex: 1; display: flex; align-items: center; justify-content: center;
             font-size: 10px; color: var(--nav-text); font-weight: bold;
-            pointer-events: none; /* Berührungen gehen an die nav-zone */
-            transition: transform 0.05s ease-out, color 0.1s ease-out; /* Super schnelle Reaktion */
-            will-change: transform; /* Performance Boost */
+            transition: transform 0.08s ease-out, color 0.1s;
+            will-change: transform;
         }
 
-        /* Versteckt alles außer Favoriten */
         .hide-all .all-apps-item, .hide-all .letter-header { display: none; }
     </style>
 </head>
 <body class="hide-all">
     
     <div class="clock" id="clock">00:00</div>
-    <div class="date" id="date">Lade Datum...</div>
+    <div class="date" id="date">Lade...</div>
     
     <div id="nav-zone"></div>
     <ul class="app-list" id="appList"></ul>
@@ -100,10 +78,8 @@
         const navZone = document.getElementById('nav-zone');
         const body = document.body;
         
-        // --- FAVORITEN-LISTE --- (Namen anpassen) ---
         const myFavorites = ["Telefon", "WhatsApp", "Chrome", "Karten", "Einstellungen", "Galerie"];
 
-        // 1. Uhrzeit & Datum (Deutsch)
         function updateTime() {
             const now = new Date();
             document.getElementById('clock').innerText = now.getHours().toString().padStart(2, '0') + ":" + now.getMinutes().toString().padStart(2, '0');
@@ -112,38 +88,32 @@
         }
         setInterval(updateTime, 1000); updateTime();
 
-        // 2. Alphabet Leiste optisch aufbauen
         chars.forEach(c => {
             const s = document.createElement('div');
             s.className = 'nav-letter'; s.innerText = c;
             navZone.appendChild(s);
         });
 
-        // 3. Die Alphabet-Welle (Fisheye Logik)
-        function applyWaveEffect(touchY) {
+        function applyWave(touchY) {
             const letters = document.querySelectorAll('.nav-letter');
-            const lettersBounds = navZone.getBoundingClientRect();
-            
+            const range = 180;
+            const maxScale = 4.5;
+
             letters.forEach(letter => {
-                const letterBounds = letter.getBoundingClientRect();
-                const centerY = letterBounds.top + letterBounds.height / 2;
-                const distance = Math.abs(touchY - centerY);
+                const rect = letter.getBoundingClientRect();
+                const centerY = rect.top + rect.height / 2;
+                const dist = Math.abs(touchY - centerY);
                 
-                if (distance < parseInt(getComputedStyle(document.documentElement).getPropertyValue('--wave-range'))) {
-                    // Faktor berechnen (0 an der Kante, 1 in der Mitte des Fingers)
-                    const range = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--wave-range'));
-                    const maxScale = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--wave-scale'));
-                    const factor = 1 - (distance / range);
+                if (dist < range) {
+                    const factor = 1 - (dist / range);
+                    const eased = factor * factor * (3 - 2 * factor); // Smooth easing
+                    const scale = 1 + (maxScale - 1) * eased;
                     
-                    // Sanftere Wölbung (ease in-out quadratic)
-                    const easedFactor = factor < 0.5 ? 2 * factor * factor : 1 - Math.pow(-2 * factor + 2, 2) / 2;
-                    const scale = 1 + (maxScale - 1) * easedFactor;
-                    
-                    // Verschiebung nach außen (bubble effect)
-                    const xOffset = -20 * easedFactor; 
+                    // Verschiebt die Buchstaben weit in die Mitte (negativer Wert = nach links)
+                    const xOffset = -140 * eased; 
 
                     letter.style.transform = `scale(${scale}) translateX(${xOffset}px)`;
-                    letter.style.color = `rgba(255,255,255,${0.2 + 0.8 * easedFactor})`;
+                    letter.style.color = `rgba(255,255,255,${0.2 + 0.8 * eased})`;
                 } else {
                     letter.style.transform = `scale(1) translateX(0px)`;
                     letter.style.color = `var(--nav-text)`;
@@ -151,24 +121,12 @@
             });
         }
 
-        // Buchstaben zurücksetzen
-        function resetWave() {
-            document.querySelectorAll('.nav-letter').forEach(l => {
-                l.style.transform = `scale(1) translateX(0px)`;
-                l.style.color = `var(--nav-text)`;
-            });
-        }
-
-        // 4. Navigation (Gleiten)
         function handleScrub(e) {
             e.preventDefault();
             const touch = e.touches[0];
             body.classList.remove('hide-all');
+            applyWave(touch.clientY);
             
-            // Welle anwenden
-            applyWaveEffect(touch.clientY);
-            
-            // Sprung-Logik (mathematisch)
             const bounds = navZone.getBoundingClientRect();
             let relY = (touch.clientY - bounds.top) / bounds.height;
             relY = Math.max(0, Math.min(0.99, relY));
@@ -181,28 +139,24 @@
         navZone.addEventListener('touchmove', handleScrub);
         navZone.addEventListener('touchend', () => {
             body.classList.add('hide-all');
-            window.scrollTo(0, 0); // Zurück nach oben
-            resetWave(); // Welle stoppen
+            window.scrollTo(0, 0);
+            document.querySelectorAll('.nav-letter').forEach(l => {
+                l.style.transform = `scale(1) translateX(0px)`;
+                l.style.color = `var(--nav-text)`;
+            });
         });
 
-        // 5. Daten vom Handy empfangen (Icons)
         window.setApps = function(json) {
             const apps = JSON.parse(json);
             const list = document.getElementById('appList');
             list.innerHTML = '';
-
-            apps.filter(a => myFavorites.includes(a.name)).forEach(app => {
-                list.appendChild(createItem(app, "fav-item"));
-            });
-
+            apps.filter(a => myFavorites.includes(a.name)).forEach(app => list.appendChild(createItem(app, "fav-item")));
             let last = '';
             apps.forEach(app => {
                 const first = app.name[0].toUpperCase();
                 if (first !== last && /^[A-Z]$/.test(first)) {
-                    const h = document.createElement('li');
-                    h.className = 'header letter-header'; h.id = 'header-' + first; h.innerText = first;
-                    list.appendChild(h);
-                    last = first;
+                    const h = document.createElement('li'); h.className = 'header letter-header'; h.id = 'header-' + first; h.innerText = first;
+                    list.appendChild(h); last = first;
                 }
                 list.appendChild(createItem(app, "all-apps-item"));
             });
