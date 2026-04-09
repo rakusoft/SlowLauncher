@@ -36,10 +36,12 @@ jobs:
         run: |
           npx cap add android
           
-          # 1. Launcher-Berechtigung setzen
-          sed -i '/<category android:name="android.intent.category.LAUNCHER" \/>/a <category android:name="android.intent.category.HOME" />\n<category android:name="android.intent.category.DEFAULT" />' android/app/src/main/AndroidManifest.xml
+          # 1. Launcher-Berechtigung & Sichtbarkeit für ALLE Apps (Android 11+)
+          MANIFEST="android/app/src/main/AndroidManifest.xml"
+          sed -i '/<application/i <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" />' $MANIFEST
+          sed -i '/<category android:name="android.intent.category.LAUNCHER" \/>/a <category android:name="android.intent.category.HOME" />\n<category android:name="android.intent.category.DEFAULT" />' $MANIFEST
           
-          # 2. Native Brücke (Java) erstellen
+          # 2. Native Brücke (Java)
           cat <<EOF > android/app/src/main/java/com/rakusoft/slowlauncher/MainActivity.java
           package com.rakusoft.slowlauncher;
           import android.content.Intent;
@@ -51,6 +53,8 @@ jobs:
           import org.json.JSONArray;
           import org.json.JSONObject;
           import java.util.List;
+          import java.util.Collections;
+          import java.util.Comparator;
 
           public class MainActivity extends BridgeActivity {
               @Override
@@ -65,6 +69,14 @@ jobs:
                               Intent mainIntent = new Intent(Intent.ACTION_MAIN, null);
                               mainIntent.addCategory(Intent.CATEGORY_LAUNCHER);
                               List<ResolveInfo> pkgAppsList = getPackageManager().queryIntentActivities(mainIntent, 0);
+                              
+                              Collections.sort(pkgAppsList, new Comparator<ResolveInfo>() {
+                                  @Override
+                                  public int compare(ResolveInfo a, ResolveInfo b) {
+                                      return a.loadLabel(getPackageManager()).toString().compareToIgnoreCase(b.loadLabel(getPackageManager()).toString());
+                                  }
+                              });
+
                               JSONArray apps = new JSONArray();
                               for (ResolveInfo ad : pkgAppsList) {
                                   JSONObject app = new JSONObject();
