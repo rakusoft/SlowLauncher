@@ -5,25 +5,28 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
     <style>
         :root { 
-            /* Sichtbarerer Hintergrund: Tiefes Blau/Violett zu Dunkelgrau */
-            --bg-top: #1a1c2c; 
-            --bg-bottom: #0f0f0f;
+            /* --- HINTERGRUND-BILD HIER EINTRAGEN --- */
+            /* Ersetze die URL unten durch dein Bild (z.B. von einem Hoster oder lokal) */
+            --bg-image: url('https://photos.app.goo.gl/8pW112VjMD8wBSAM8');
+            
             --text-main: rgba(255,255,255,0.95);
             --text-sec: rgba(255,255,255,0.4);
             --nav-text: rgba(255,255,255,0.15);
             
-            /* Wellen-Parameter für den "Big Wave" Effekt */
-            --wave-range: 180px;  /* Größerer Bereich der beeinflusst wird */
-            --wave-scale: 4.5;    /* Massive Vergrößerung */
+            /* Wellen-Feintuning */
+            --wave-range: 150px; 
+            --wave-scale: 3.2;   /* Etwas kleiner als vorher */
         }
         
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; outline: none; }
         
         body {
-            /* Hintergrund als kräftigerer Verlauf */
-            background: linear-gradient(180deg, var(--bg-top) 0%, var(--bg-bottom) 100%) no-repeat;
-            background-attachment: fixed;
+            /* Hintergrund-Logik */
             background-color: #000;
+            background-image: var(--bg-image);
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
             
             color: var(--text-main);
             font-family: sans-serif;
@@ -34,20 +37,22 @@
             user-select: none;
         }
 
-        .clock { font-size: 68px; font-weight: 200; margin-bottom: 5px; }
-        .date { font-size: 16px; color: var(--text-sec); margin-bottom: 50px; text-transform: uppercase; letter-spacing: 1.5px; }
-        
-        .app-list { list-style: none; padding: 0; margin: 0; }
-        .app-item { 
-            padding: 16px 0; font-size: 23px; font-weight: 300; 
-            display: flex; align-items: center; gap: 20px;
+        /* Overlay für bessere Lesbarkeit über dem Bild */
+        body::before {
+            content: "";
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5); /* Dunkelt das Bild ab, damit Text lesbar bleibt */
+            z-index: -1;
         }
+
+        .clock { font-size: 68px; font-weight: 200; margin-bottom: 5px; position: relative; }
+        .date { font-size: 16px; color: var(--text-sec); margin-bottom: 50px; text-transform: uppercase; letter-spacing: 1.5px; position: relative; }
+        
+        .app-list { list-style: none; padding: 0; margin: 0; position: relative; }
+        .app-item { padding: 16px 0; font-size: 23px; font-weight: 300; display: flex; align-items: center; gap: 20px; }
         .app-icon { width: 34px; height: 34px; border-radius: 10px; filter: grayscale(100%); opacity: 0.8; }
 
-        .header { 
-            color: var(--text-sec); font-size: 14px; margin-top: 45px; 
-            font-weight: bold; text-transform: uppercase; scroll-margin-top: 100px;
-        }
+        .header { color: var(--text-sec); font-size: 14px; margin-top: 45px; font-weight: bold; text-transform: uppercase; scroll-margin-top: 100px; }
         
         #nav-zone {
             position: fixed; right: 0; top: 0; width: 80px; height: 100vh;
@@ -78,6 +83,7 @@
         const navZone = document.getElementById('nav-zone');
         const body = document.body;
         
+        // --- FAVORITEN-LISTE ---
         const myFavorites = ["Telefon", "WhatsApp", "Chrome", "Karten", "Einstellungen", "Galerie"];
 
         function updateTime() {
@@ -96,8 +102,8 @@
 
         function applyWave(touchY) {
             const letters = document.querySelectorAll('.nav-letter');
-            const range = 180;
-            const maxScale = 4.5;
+            const range = 150;
+            const maxScale = 3.2;
 
             letters.forEach(letter => {
                 const rect = letter.getBoundingClientRect();
@@ -106,11 +112,11 @@
                 
                 if (dist < range) {
                     const factor = 1 - (dist / range);
-                    const eased = factor * factor * (3 - 2 * factor); // Smooth easing
+                    const eased = factor * factor * (3 - 2 * factor); 
                     const scale = 1 + (maxScale - 1) * eased;
                     
-                    // Verschiebt die Buchstaben weit in die Mitte (negativer Wert = nach links)
-                    const xOffset = -140 * eased; 
+                    // Versatz nach links (moderatere -90px statt -140px)
+                    const xOffset = -90 * eased; 
 
                     letter.style.transform = `scale(${scale}) translateX(${xOffset}px)`;
                     letter.style.color = `rgba(255,255,255,${0.2 + 0.8 * eased})`;
