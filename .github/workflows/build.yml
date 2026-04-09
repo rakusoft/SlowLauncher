@@ -46,9 +46,13 @@ jobs:
           import android.content.pm.ResolveInfo;
           import android.graphics.Bitmap;
           import android.graphics.Canvas;
+          import android.graphics.Color;
           import android.graphics.drawable.Drawable;
           import android.os.Bundle;
           import android.util.Base64;
+          import android.view.View;
+          import android.view.Window;
+          import android.view.WindowManager;
           import android.webkit.JavascriptInterface;
           import android.webkit.ValueCallback;
           import android.webkit.WebChromeClient;
@@ -64,12 +68,19 @@ jobs:
               @Override
               public void onCreate(Bundle savedInstanceState) {
                   super.onCreate(savedInstanceState);
+                  
+                  // Macht die Statusleiste und Navigationsleiste transparent
+                  Window w = getWindow();
+                  w.setFlags(WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS, WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS);
+                  w.setStatusBarColor(Color.TRANSPARENT);
+                  w.setNavigationBarColor(Color.TRANSPARENT);
+
                   WebView webView = this.getBridge().getWebView();
                   webView.getSettings().setJavaScriptEnabled(true);
                   webView.getSettings().setAllowFileAccess(true);
                   webView.getSettings().setAllowContentAccess(true);
+                  webView.setBackgroundColor(Color.TRANSPARENT); // Wichtig für den Durchblick
                   
-                  // Ermöglicht das Öffnen der Galerie aus dem HTML
                   webView.setWebChromeClient(new WebChromeClient() {
                       @Override
                       public boolean onShowFileChooser(WebView webView, ValueCallback<android.net.Uri[]> filePathCallback, FileChooserParams fileChooserParams) {
@@ -77,9 +88,7 @@ jobs:
                           try {
                               startActivityForResult(intent, 100);
                               MainActivity.this.filePathCallback = filePathCallback;
-                          } catch (Exception e) {
-                              return false;
-                          }
+                          } catch (Exception e) { return false; }
                           return true;
                       }
                   });
