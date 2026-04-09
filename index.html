@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
     <style>
-        :root { --bg-color: #000; --text-color: #fff; --accent: #333; }
+        :root { --bg-color: #000; --text-color: #fff; }
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         
         body {
@@ -12,7 +12,7 @@
             color: var(--text-color);
             font-family: sans-serif;
             margin: 0;
-            padding: 80px 60px 20px 30px;
+            padding: 80px 60px 200px 30px; /* Viel Platz unten zum Scrollen */
             min-height: 100vh;
             overflow-x: hidden;
             user-select: none;
@@ -20,53 +20,24 @@
 
         .clock { font-size: 58px; font-weight: 200; margin-bottom: 40px; }
         
-        /* App Liste */
         .app-list { list-style: none; padding: 0; margin: 0; }
-        .app-item { 
-            padding: 15px 0; 
-            font-size: 22px; 
-            font-weight: 300; 
-            display: flex;
-            align-items: center;
-        }
+        .app-item { padding: 15px 0; font-size: 22px; font-weight: 300; display: flex; align-items: center; }
         .app-item:active { color: #888; }
 
-        .letter-header { 
-            color: #555; font-size: 14px; margin-top: 35px; 
-            font-weight: bold; scroll-margin-top: 100px; 
-        }
+        .section-header { color: #444; font-size: 14px; margin-top: 40px; font-weight: bold; scroll-margin-top: 80px; }
+        .letter-header { color: #444; font-size: 14px; margin-top: 30px; font-weight: bold; scroll-margin-top: 80px; }
 
-        /* Das Alphabet rechts (Die Steuerzentrale) */
         #nav-zone {
-            position: fixed;
-            right: 0; top: 0;
-            width: 70px; height: 100vh;
-            z-index: 1000;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
+            position: fixed; right: 0; top: 0; width: 70px; height: 100vh;
+            z-index: 1000; display: flex; flex-direction: column; justify-content: center;
             touch-action: none;
         }
 
-        .nav-letter {
-            flex: 1;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 11px;
-            color: #444;
-            pointer-events: none;
-        }
+        .nav-letter { flex: 1; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #444; }
 
-        /* Das große Overlay-Zeichen beim Scrollen */
         #letter-overlay {
-            position: fixed;
-            top: 50%; left: 50%;
-            transform: translate(-50%, -50%);
-            font-size: 120px;
-            color: rgba(255,255,255,0.2);
-            display: none;
-            pointer-events: none;
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            font-size: 120px; color: rgba(255,255,255,0.2); display: none; pointer-events: none;
         }
     </style>
 </head>
@@ -75,98 +46,88 @@
     <div class="clock" id="clock">00:00</div>
     <div id="letter-overlay"></div>
     <div id="nav-zone"></div>
-    <ul class="app-list" id="appList"></ul>
+    <ul class="app-list" id="appList"><li>Lade Programme...</li></ul>
 
     <script>
         const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
         const navZone = document.getElementById('nav-zone');
         const overlay = document.getElementById('letter-overlay');
-        let allApps = [];
         
-        // --- HIER DEINE FAVORITEN EINTRAGEN (Paketnamen) ---
+        // --- FAVORITEN (Paketnamen hier anpassen) ---
         const favorites = ["com.android.chrome", "com.whatsapp", "com.android.settings", "com.android.dialer"];
 
         // 1. Uhrzeit
-        function updateClock() {
+        setInterval(() => {
             const now = new Date();
             document.getElementById('clock').innerText = now.getHours().toString().padStart(2, '0') + ":" + now.getMinutes().toString().padStart(2, '0');
-        }
-        setInterval(updateClock, 1000);
-        updateClock();
+        }, 1000);
 
-        // 2. Alphabet aufbauen
+        // 2. Alphabet Leiste
         chars.forEach(c => {
             const s = document.createElement('div');
-            s.className = 'nav-letter';
-            s.innerText = c;
+            s.className = 'nav-letter'; s.innerText = c;
             navZone.appendChild(s);
         });
 
-        // 3. Navigation & Drawer Logik
-        function scrubAlphabet(e) {
+        // 3. Navigation
+        function scrub(e) {
             const touch = e.touches[0];
             const bounds = navZone.getBoundingClientRect();
             let relY = (touch.clientY - bounds.top) / bounds.height;
             relY = Math.max(0, Math.min(0.99, relY));
-            
-            const index = Math.floor(relY * chars.length);
-            const letter = chars[index];
+            const letter = chars[Math.floor(relY * chars.length)];
 
-            // Visuelles Feedback
             overlay.innerText = letter;
             overlay.style.display = 'block';
 
-            // Zeige ALLE Apps, wenn das Alphabet berührt wird (Drawer Modus)
-            renderList(allApps, true);
-
-            // Springe zum Buchstaben
             const target = document.getElementById('letter-' + letter);
             if (target) {
-                window.scrollTo(0, target.offsetTop - 90);
+                // "auto" statt "smooth" für verzögerungsfreies Springen
+                target.scrollIntoView({ behavior: 'auto', block: 'start' });
             }
         }
 
-        navZone.addEventListener('touchstart', (e) => { e.preventDefault(); scrubAlphabet(e); });
-        navZone.addEventListener('touchmove', (e) => { e.preventDefault(); scrubAlphabet(e); });
-        navZone.addEventListener('touchend', () => { 
-            setTimeout(() => { overlay.style.display = 'none'; }, 500);
-        });
+        navZone.addEventListener('touchstart', (e) => { e.preventDefault(); scrub(e); });
+        navZone.addEventListener('touchmove', (e) => { e.preventDefault(); scrub(e); });
+        navZone.addEventListener('touchend', () => { overlay.style.display = 'none'; });
 
-        // 4. Liste rendern
-        function renderList(apps, showAll = false) {
+        // 4. Alles in einer Liste rendern
+        window.setApps = function(json) {
+            const apps = JSON.parse(json).sort((a, b) => a.name.localeCompare(b.name));
             const list = document.getElementById('appList');
             list.innerHTML = '';
-            let currentApps = showAll ? apps : apps.filter(a => favorites.includes(a.packageName));
-            
-            // Falls keine Favoriten definiert sind oder wir im Drawer sind
-            if (!showAll && currentApps.length === 0) currentApps = apps.slice(0, 6);
 
+            // Favoriten zuerst
+            const favApps = apps.filter(a => favorites.includes(a.packageName));
+            if (favApps.length > 0) {
+                const head = document.createElement('li'); head.className = 'section-header'; head.innerText = 'FAVORITEN';
+                list.appendChild(head);
+                favApps.forEach(app => list.appendChild(createAppItem(app)));
+            }
+
+            // Alle Apps mit Buchstaben-Ankern
             let lastLetter = '';
-            currentApps.sort((a, b) => a.name.localeCompare(b.name)).forEach(app => {
+            apps.forEach(app => {
                 const firstLetter = app.name[0].toUpperCase();
-                
-                if (showAll && firstLetter !== lastLetter && /^[A-Z]$/.test(firstLetter)) {
-                    const header = document.createElement('li');
-                    header.className = 'letter-header';
-                    header.id = 'letter-' + firstLetter;
-                    header.innerText = firstLetter;
-                    list.appendChild(header);
+                if (firstLetter !== lastLetter && /^[A-Z]$/.test(firstLetter)) {
+                    const head = document.createElement('li');
+                    head.className = 'letter-header';
+                    head.id = 'letter-' + firstLetter;
+                    head.innerText = firstLetter;
+                    list.appendChild(head);
                     lastLetter = firstLetter;
                 }
-
-                const li = document.createElement('li');
-                li.className = 'app-item';
-                li.innerText = app.name;
-                li.onclick = () => AndroidBridge.launchApp(app.packageName);
-                list.appendChild(li);
+                list.appendChild(createAppItem(app));
             });
-        }
-
-        // 5. Daten vom Handy empfangen
-        window.setApps = function(jsonString) {
-            allApps = JSON.parse(jsonString);
-            renderList(allApps, false); // Zuerst nur Favoriten zeigen
         };
+
+        function createAppItem(app) {
+            const li = document.createElement('li');
+            li.className = 'app-item';
+            li.innerText = app.name;
+            li.onclick = () => AndroidBridge.launchApp(app.packageName);
+            return li;
+        }
 
         setTimeout(() => { if (window.AndroidBridge) AndroidBridge.fetchApps(); }, 300);
     </script>
