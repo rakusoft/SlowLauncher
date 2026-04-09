@@ -15,14 +15,13 @@
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; outline: none; }
         
         body {
-            background-color: transparent; /* Damit der Android-Hintergrund durchscheint */
+            background-color: transparent;
             background-size: cover;
             background-position: center;
             background-attachment: fixed;
             color: var(--text-main);
             font-family: sans-serif;
             margin: 0;
-            /* Padding oben erhöht, um Platz für die System-Icons zu lassen */
             padding: calc(env(safe-area-inset-top) + 60px) 80px 300px 30px;
             min-height: 100vh;
             overflow-x: hidden;
@@ -46,7 +45,6 @@
 
         .header { color: var(--text-sec); font-size: 14px; margin-top: 45px; font-weight: bold; text-transform: uppercase; scroll-margin-top: 100px; }
         
-        /* Navigation & Reset-Lücke */
         #nav-zone { position: fixed; right: 0; top: 25vh; width: 80px; height: 75vh; z-index: 1000; display: flex; flex-direction: column; justify-content: center; touch-action: none; padding-bottom: calc(env(safe-area-inset-bottom) + 20px); }
         #reset-gap { position: fixed; right: 0; top: 0; width: 80px; height: 25vh; z-index: 1001; }
 
@@ -54,12 +52,20 @@
 
         .show-only-favs .all-apps-item, .show-only-favs .letter-header { display: none; }
 
+        /* Einstellungen Overlay */
         #settings-modal {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.9); z-index: 2000;
-            display: none; flex-direction: column; padding: 80px 30px;
+            background: rgba(0,0,0,0.95); z-index: 2000;
+            display: none; flex-direction: column; padding: 60px 20px;
+            overflow-y: auto;
         }
-        .btn { background: #333; color: #fff; border: none; padding: 20px; border-radius: 15px; font-size: 18px; margin-bottom: 20px; }
+        .btn { background: #333; color: #fff; border: none; padding: 18px; border-radius: 15px; font-size: 16px; margin-bottom: 15px; width: 100%; }
+        
+        /* Favoriten-Verwaltung im Menü */
+        .fav-manager { margin-top: 20px; }
+        .fav-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #222; }
+        .fav-row span { font-size: 18px; }
+        .checkbox { width: 25px; height: 25px; accent-color: #fff; }
     </style>
 </head>
 <body class="show-only-favs" id="mainBody">
@@ -75,10 +81,15 @@
     <ul class="app-list" id="appList"></ul>
 
     <div id="settings-modal">
-        <h2 style="font-weight: 200; margin-bottom: 40px;">Einstellungen</h2>
-        <button class="btn" onclick="document.getElementById('bgInput').click()">Galerie wählen</button>
-        <button class="btn" onclick="clearBg()">Zurücksetzen</button>
-        <button class="btn" onclick="closeSettings()" style="background: #555; margin-top: auto;">Schließen</button>
+        <h2 style="font-weight: 200; margin-bottom: 20px;">Launcher-Optionen</h2>
+        <button class="btn" onclick="document.getElementById('bgInput').click()">Hintergrundbild ändern</button>
+        <button class="btn" onclick="clearBg()">Hintergrund zurücksetzen</button>
+        
+        <h3 style="font-weight: 300; margin-top: 30px; color: var(--text-sec);">Favoriten wählen</h3>
+        <div id="fav-list-container" class="fav-manager">
+            </div>
+        
+        <button class="btn" onclick="closeSettings()" style="background: #555; margin-top: 40px; position: sticky; bottom: 0;">Fertig & Schließen</button>
         <input type="file" id="bgInput" style="display:none" accept="image/*" onchange="saveBg(this)">
     </div>
 
@@ -86,38 +97,14 @@
         const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
         const navZone = document.getElementById('nav-zone');
         const body = document.getElementById('mainBody');
-        
-        const myFavorites = ["Telefon", "WhatsApp", "Chrome", "Karten", "Einstellungen", "Galerie"];
+        let allAppsGlobal = [];
 
+        // Favoriten laden oder Standard setzen
+        let myFavorites = JSON.parse(localStorage.getItem('myFavorites')) || ["Telefon", "WhatsApp", "Chrome"];
+
+        // Hintergrund laden
         const savedBg = localStorage.getItem('customBg');
         if (savedBg) document.body.style.backgroundImage = `url(${savedBg})`;
-
-        function saveBg(input) {
-            const file = input.files[0];
-            const reader = new FileReader();
-            reader.onloadend = function() {
-                const img = new Image();
-                img.onload = function() {
-                    const canvas = document.createElement('canvas');
-                    const ctx = canvas.getContext('2d');
-                    const maxW = 1080; 
-                    const scale = maxW / img.width;
-                    canvas.width = maxW;
-                    canvas.height = img.height * scale;
-                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                    const base64 = canvas.toDataURL('image/jpeg', 0.7);
-                    localStorage.setItem('customBg', base64);
-                    document.body.style.backgroundImage = `url(${base64})`;
-                    closeSettings();
-                };
-                img.src = reader.result;
-            }
-            reader.readAsDataURL(file);
-        }
-
-        function clearBg() { localStorage.removeItem('customBg'); document.body.style.backgroundImage = 'none'; closeSettings(); }
-        function openSettings() { document.getElementById('settings-modal').style.display = 'flex'; }
-        function closeSettings() { document.getElementById('settings-modal').style.display = 'none'; }
 
         function updateTime() {
             const now = new Date();
@@ -135,6 +122,100 @@
 
         function resetToFavs() { body.classList.add('show-only-favs'); window.scrollTo(0, 0); }
 
+        function toggleFavorite(appName) {
+            if (myFavorites.includes(appName)) {
+                myFavorites = myFavorites.filter(f => f !== appName);
+            } else {
+                myFavorites.push(appName);
+            }
+            localStorage.setItem('myFavorites', JSON.stringify(myFavorites));
+            renderMainList(); // Startseite sofort aktualisieren
+        }
+
+        function openSettings() {
+            const container = document.getElementById('fav-list-container');
+            container.innerHTML = '';
+            
+            allAppsGlobal.forEach(app => {
+                const isFav = myFavorites.includes(app.name);
+                const row = document.createElement('div');
+                row.className = 'fav-row';
+                row.innerHTML = `
+                    <span>${app.name}</span>
+                    <input type="checkbox" class="checkbox" ${isFav ? 'checked' : ''} onchange="toggleFavorite('${app.name}')">
+                `;
+                container.appendChild(row);
+            });
+            document.getElementById('settings-modal').style.display = 'flex';
+        }
+
+        function closeSettings() { document.getElementById('settings-modal').style.display = 'none'; }
+
+        function renderMainList() {
+            const list = document.getElementById('appList');
+            list.innerHTML = '';
+            
+            // 1. Favoriten
+            allAppsGlobal.filter(a => myFavorites.includes(a.name)).forEach(app => {
+                list.appendChild(createItem(app, "fav-item"));
+            });
+            
+            // Einstellungs-Zahnrad
+            const setBtn = document.createElement('li');
+            setBtn.className = 'app-item fav-item';
+            setBtn.style.color = 'var(--text-sec)';
+            setBtn.innerHTML = `<span style="font-size: 30px; width: 34px; text-align: center;">⚙</span> <span>Launcher-Einstellungen</span>`;
+            setBtn.onclick = openSettings;
+            list.appendChild(setBtn);
+
+            // 2. Gesamte Liste
+            let last = '';
+            allAppsGlobal.forEach(app => {
+                const first = app.name[0].toUpperCase();
+                if (first !== last && /^[A-Z]$/.test(first)) {
+                    const h = document.createElement('li'); h.className = 'header letter-header'; h.id = 'header-' + first; h.innerText = first;
+                    list.appendChild(h); last = first;
+                }
+                list.appendChild(createItem(app, "all-apps-item"));
+            });
+        }
+
+        window.setApps = function(json) {
+            allAppsGlobal = JSON.parse(json);
+            renderMainList();
+        };
+
+        function createItem(app, cls) {
+            const li = document.createElement('li');
+            li.className = 'app-item ' + cls;
+            li.innerHTML = `<img class="app-icon" src="data:image/png;base64,${app.icon}"> <span>${app.name}</span>`;
+            li.onclick = () => { AndroidBridge.launchApp(app.packageName); setTimeout(resetToFavs, 1000); };
+            return li;
+        }
+
+        // Hintergrund-Funktionen
+        function saveBg(input) {
+            const file = input.files[0];
+            const reader = new FileReader();
+            reader.onloadend = function() {
+                const img = new Image();
+                img.onload = function() {
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    const maxW = 1080; const scale = maxW / img.width;
+                    canvas.width = maxW; canvas.height = img.height * scale;
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                    const base64 = canvas.toDataURL('image/jpeg', 0.7);
+                    localStorage.setItem('customBg', base64);
+                    document.body.style.backgroundImage = `url(${base64})`;
+                };
+                img.src = reader.result;
+            }
+            reader.readAsDataURL(file);
+        }
+        function clearBg() { localStorage.removeItem('customBg'); document.body.style.backgroundImage = 'none'; }
+
+        // Wellen-Logik (unverändert)
         function applyWave(touchY) {
             const letters = document.querySelectorAll('.nav-letter');
             letters.forEach(letter => {
@@ -174,38 +255,6 @@
                 l.style.color = `var(--nav-text)`;
             });
         });
-
-        window.setApps = function(json) {
-            const apps = JSON.parse(json);
-            const list = document.getElementById('appList');
-            list.innerHTML = '';
-            apps.filter(a => myFavorites.includes(a.name)).forEach(app => list.appendChild(createItem(app, "fav-item")));
-            
-            const setBtn = document.createElement('li');
-            setBtn.className = 'app-item fav-item';
-            setBtn.style.color = 'var(--text-sec)';
-            setBtn.innerHTML = `<span style="font-size: 30px; width: 34px; text-align: center;">⚙</span> <span>Launcher-Einstellungen</span>`;
-            setBtn.onclick = openSettings;
-            list.appendChild(setBtn);
-
-            let last = '';
-            apps.forEach(app => {
-                const first = app.name[0].toUpperCase();
-                if (first !== last && /^[A-Z]$/.test(first)) {
-                    const h = document.createElement('li'); h.className = 'header letter-header'; h.id = 'header-' + first; h.innerText = first;
-                    list.appendChild(h); last = first;
-                }
-                list.appendChild(createItem(app, "all-apps-item"));
-            });
-        };
-
-        function createItem(app, cls) {
-            const li = document.createElement('li');
-            li.className = 'app-item ' + cls;
-            li.innerHTML = `<img class="app-icon" src="data:image/png;base64,${app.icon}"> <span>${app.name}</span>`;
-            li.onclick = () => { AndroidBridge.launchApp(app.packageName); setTimeout(resetToFavs, 1000); };
-            return li;
-        }
 
         setTimeout(() => { if (window.AndroidBridge) AndroidBridge.fetchApps(); }, 400);
     </script>
