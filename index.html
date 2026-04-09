@@ -8,6 +8,7 @@
             --text-main: rgba(255,255,255,0.95);
             --text-sec: rgba(255,255,255,0.4);
             --nav-text: rgba(255,255,255,0.15);
+            --accent: #007AFF;
         }
         
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; outline: none; }
@@ -15,7 +16,7 @@
         body {
             background-color: transparent; background-size: cover; background-position: center;
             background-attachment: fixed; color: var(--text-main); font-family: sans-serif;
-            margin: 0; padding: calc(env(safe-area-inset-top) + 60px) 80px 300px 30px;
+            margin: 0; padding: calc(env(safe-area-inset-top) + 40px) 80px 300px 30px;
             min-height: 100vh; overflow-x: hidden; user-select: none;
         }
 
@@ -24,10 +25,20 @@
             background: rgba(0,0,0,0.5); z-index: -1;
         }
 
-        #top-zone { margin-bottom: 30px; cursor: pointer; }
-        .clock { font-size: 68px; font-weight: 200; margin-bottom: 5px; }
-        .date { font-size: 16px; color: var(--text-sec); text-transform: uppercase; letter-spacing: 1.5px; }
+        /* Obere Zone mit Uhr und Suche */
+        #top-zone { margin-bottom: 20px; }
+        .clock { font-size: 68px; font-weight: 200; margin-bottom: 5px; cursor: pointer; }
+        .date { font-size: 16px; color: var(--text-sec); text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 25px; cursor: pointer; }
         
+        /* Suchfeld Styling */
+        #search-container { margin-bottom: 30px; position: relative; z-index: 100; }
+        #appSearch {
+            width: 100%; background: rgba(255,255,255,0.1); border: none;
+            border-radius: 12px; padding: 12px 15px; color: #fff; font-size: 18px;
+            backdrop-filter: blur(10px);
+        }
+        #appSearch::placeholder { color: var(--text-sec); }
+
         .app-list { list-style: none; padding: 0; margin: 0; position: relative; z-index: 10; }
         .app-item { padding: 16px 0; font-size: 23px; font-weight: 300; display: flex; align-items: center; gap: 20px; }
         .app-icon { width: 34px; height: 34px; border-radius: 10px; filter: grayscale(100%); opacity: 0.8; }
@@ -39,51 +50,45 @@
 
         .nav-letter { flex: 1; display: flex; align-items: center; justify-content: center; font-size: 10px; color: var(--nav-text); font-weight: bold; transition: transform 0.08s ease-out, color 0.1s; will-change: transform; }
 
+        /* Zustände für Suche und Favoriten */
         .show-only-favs .all-apps-item, .show-only-favs .letter-header { display: none; }
+        .is-searching #nav-zone, .is-searching .fav-item, .is-searching .letter-header { display: none; }
 
-        /* Overlays (Einstellungen & Kalender) */
-        .modal {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.98); z-index: 2000;
-            display: none; flex-direction: column; padding: 80px 30px;
-            overflow-y: auto;
-        }
+        /* Modals */
+        .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.98); z-index: 2000; display: none; flex-direction: column; padding: 80px 30px; overflow-y: auto; }
         .btn { background: #333; color: #fff; border: none; padding: 18px; border-radius: 15px; font-size: 16px; margin-bottom: 15px; width: 100%; text-align: center; }
-        
+        .event-item { margin-bottom: 25px; border-left: 3px solid var(--accent); padding-left: 15px; }
         .fav-row { display: flex; align-items: center; justify-content: space-between; padding: 18px 10px; border-bottom: 1px solid #222; }
-        .fav-row.active span { color: #fff; font-weight: bold; }
-        .fav-row.inactive span { color: #555; }
-
-        /* Kalender Design */
-        .event-item { margin-bottom: 25px; border-left: 3px solid #007AFF; padding-left: 15px; }
-        .event-time { font-size: 13px; color: var(--text-sec); margin-bottom: 4px; }
-        .event-title { font-size: 18px; font-weight: 300; }
     </style>
 </head>
 <body class="show-only-favs" id="mainBody">
     
     <div id="reset-gap" onclick="resetToFavs()"></div>
 
-    <div id="top-zone" onclick="openCalendar()">
-        <div class="clock" id="clock">00:00</div>
-        <div class="date" id="date">Lade...</div>
+    <div id="top-zone">
+        <div class="clock" id="clock" onclick="resetToFavs()">00:00</div>
+        <div class="date" id="date" onclick="openCalendar()">Lade...</div>
+        
+        <div id="search-container">
+            <input type="text" id="appSearch" placeholder="App suchen..." oninput="handleSearch(this.value)">
+        </div>
     </div>
     
     <div id="nav-zone"></div>
     <ul class="app-list" id="appList"></ul>
 
     <div id="calendar-modal" class="modal">
-        <h2 style="font-weight: 200; margin-bottom: 30px;">Wochenübersicht</h2>
+        <h2 style="font-weight: 200; margin-bottom: 30px;">Termine</h2>
         <div id="calendar-content"></div>
         <button class="btn" onclick="closeCalendar()" style="background: #555; margin-top: 30px;">Schließen</button>
     </div>
 
     <div id="settings-modal" class="modal">
         <h2 style="font-weight: 200; margin-bottom: 20px;">Optionen</h2>
-        <button class="btn" onclick="document.getElementById('bgInput').click()">Hintergrundbild ändern</button>
-        <button class="btn" onclick="clearBg()">Hintergrund zurücksetzen</button>
+        <button class="btn" onclick="document.getElementById('bgInput').click()">Bild ändern</button>
+        <button class="btn" onclick="clearBg()">Zurücksetzen</button>
         <div id="fav-list-container"></div>
-        <button class="btn" onclick="closeSettings()" style="background: #007AFF; margin-top: 30px;">Fertig</button>
+        <button class="btn" onclick="closeSettings()" style="background: var(--accent); margin-top: 30px;">Fertig</button>
         <input type="file" id="bgInput" style="display:none" accept="image/*" onchange="saveBg(this)">
     </div>
 
@@ -91,6 +96,7 @@
         const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
         const navZone = document.getElementById('nav-zone');
         const body = document.getElementById('mainBody');
+        const searchInput = document.getElementById('appSearch');
         let allAppsGlobal = [];
         let myFavorites = JSON.parse(localStorage.getItem('myFavorites')) || ["Telefon", "WhatsApp"];
 
@@ -100,8 +106,7 @@
         function updateTime() {
             const now = new Date();
             document.getElementById('clock').innerText = now.getHours().toString().padStart(2, '0') + ":" + now.getMinutes().toString().padStart(2, '0');
-            const options = { weekday: 'long', day: 'numeric', month: 'long' };
-            document.getElementById('date').innerText = now.toLocaleDateString('de-DE', options);
+            document.getElementById('date').innerText = now.toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long' });
         }
         setInterval(updateTime, 1000); updateTime();
 
@@ -111,68 +116,65 @@
             navZone.appendChild(s);
         });
 
-        function resetToFavs() { body.classList.add('show-only-favs'); window.scrollTo(0, 0); }
-
-        // --- KALENDER LOGIK ---
-        function openCalendar() {
-            if (window.AndroidBridge) AndroidBridge.fetchCalendar();
-            document.getElementById('calendar-modal').style.display = 'flex';
+        // --- SUCHE LOGIK ---
+        function handleSearch(query) {
+            if (query.trim() === "") {
+                body.classList.remove('is-searching');
+                resetToFavs();
+                return;
+            }
+            body.classList.add('is-searching');
+            body.classList.remove('show-only-favs');
+            
+            const filtered = allAppsGlobal.filter(app => 
+                app.name.toLowerCase().includes(query.toLowerCase())
+            );
+            renderList(filtered, true);
         }
-        function closeCalendar() { document.getElementById('calendar-modal').style.display = 'none'; }
 
+        function resetToFavs() {
+            searchInput.value = "";
+            body.classList.remove('is-searching');
+            body.classList.add('show-only-favs');
+            window.scrollTo(0, 0);
+            renderList(allAppsGlobal);
+        }
+
+        // --- KALENDER ---
+        function openCalendar() { if (window.AndroidBridge) AndroidBridge.fetchCalendar(); document.getElementById('calendar-modal').style.display = 'flex'; }
+        function closeCalendar() { document.getElementById('calendar-modal').style.display = 'none'; }
         window.setCalendar = function(json) {
             const events = JSON.parse(json);
             const container = document.getElementById('calendar-content');
-            container.innerHTML = events.length === 0 ? '<p style="color: #555;">Keine Termine in der nächsten Woche.</p>' : '';
-            
+            container.innerHTML = events.length === 0 ? '<p>Keine Termine.</p>' : '';
             events.forEach(ev => {
                 const date = new Date(ev.start);
-                const timeStr = ev.allDay ? 'Ganztägig' : date.toLocaleTimeString('de-DE', {hour: '2-digit', minute:'2-digit'});
-                const dayStr = date.toLocaleDateString('de-DE', {weekday: 'short', day: 'numeric', month: 'short'});
-                
                 const div = document.createElement('div');
                 div.className = 'event-item';
-                div.innerHTML = `<div class="event-time">${dayStr} • ${timeStr}</div><div class="event-title">${ev.title}</div>`;
+                div.innerHTML = `<div class="event-time">${date.toLocaleDateString('de-DE', {weekday: 'short', day: 'numeric'})} • ${ev.allDay ? 'Ganztägig' : date.toLocaleTimeString('de-DE', {hour: '2-digit', minute:'2-digit'})}</div><div class="event-title">${ev.title}</div>`;
                 container.appendChild(div);
             });
         };
 
-        // --- FAVORITEN & APPS ---
-        function toggleFav(name) {
-            myFavorites = myFavorites.includes(name) ? myFavorites.filter(f => f !== name) : [...myFavorites, name];
-            localStorage.setItem('myFavorites', JSON.stringify(myFavorites));
-            renderSettingsList(); renderMainList();
-        }
-
-        function renderSettingsList() {
-            const container = document.getElementById('fav-list-container');
-            container.innerHTML = '<h3 style="font-weight: 300; margin-top: 30px; color: var(--text-sec);">Favoriten wählen</h3>';
-            allAppsGlobal.forEach(app => {
-                const isFav = myFavorites.includes(app.name);
-                const row = document.createElement('div');
-                row.className = `fav-row ${isFav ? 'active' : 'inactive'}`;
-                row.onclick = () => toggleFav(app.name);
-                row.innerHTML = `<span>${app.name}</span><div>${isFav ? '✓' : ''}</div>`;
-                container.appendChild(row);
-            });
-        }
-
-        function openSettings() { renderSettingsList(); document.getElementById('settings-modal').style.display = 'flex'; }
-        function closeSettings() { document.getElementById('settings-modal').style.display = 'none'; }
-
-        function renderMainList() {
+        // --- APPS RENDERN ---
+        function renderList(apps, isFiltered = false) {
             const list = document.getElementById('appList');
             list.innerHTML = '';
-            allAppsGlobal.filter(a => myFavorites.includes(a.name)).forEach(app => list.appendChild(createItem(app, "fav-item")));
-            const setBtn = document.createElement('li');
-            setBtn.className = 'app-item fav-item';
-            setBtn.innerHTML = `<span style="font-size: 30px; width: 34px; text-align: center;">⚙</span> <span>Launcher-Einstellungen</span>`;
-            setBtn.onclick = openSettings;
-            list.appendChild(setBtn);
+            
+            if (!isFiltered) {
+                // Favoriten nur zeigen, wenn nicht gesucht wird
+                apps.filter(a => myFavorites.includes(a.name)).forEach(app => list.appendChild(createItem(app, "fav-item")));
+                const setBtn = document.createElement('li');
+                setBtn.className = 'app-item fav-item';
+                setBtn.innerHTML = `<span style="font-size: 30px; width: 34px; text-align: center;">⚙</span> <span>Launcher-Einstellungen</span>`;
+                setBtn.onclick = openSettings;
+                list.appendChild(setBtn);
+            }
+
             let last = '';
-            allAppsGlobal.forEach(app => {
+            apps.forEach(app => {
                 const first = app.name[0].toUpperCase();
-                if (first !== last && /^[A-Z]$/.test(first)) {
+                if (!isFiltered && first !== last && /^[A-Z]$/.test(first)) {
                     const h = document.createElement('li'); h.className = 'header letter-header'; h.id = 'header-' + first; h.innerText = first;
                     list.appendChild(h); last = first;
                 }
@@ -180,7 +182,7 @@
             });
         }
 
-        window.setApps = function(json) { allAppsGlobal = JSON.parse(json); renderMainList(); };
+        window.setApps = function(json) { allAppsGlobal = JSON.parse(json); renderList(allAppsGlobal); };
 
         function createItem(app, cls) {
             const li = document.createElement('li');
@@ -189,6 +191,27 @@
             li.onclick = () => { AndroidBridge.launchApp(app.packageName); setTimeout(resetToFavs, 1000); };
             return li;
         }
+
+        // --- EINSTELLUNGEN ---
+        function toggleFav(name) {
+            myFavorites = myFavorites.includes(name) ? myFavorites.filter(f => f !== name) : [...myFavorites, name];
+            localStorage.setItem('myFavorites', JSON.stringify(myFavorites));
+            renderSettingsList(); renderList(allAppsGlobal);
+        }
+        function renderSettingsList() {
+            const container = document.getElementById('fav-list-container');
+            container.innerHTML = '<h3 style="font-weight: 300; margin-top: 30px; color: var(--text-sec);">Favoriten</h3>';
+            allAppsGlobal.forEach(app => {
+                const isFav = myFavorites.includes(app.name);
+                const row = document.createElement('div');
+                row.className = `fav-row ${isFav ? 'active' : ''}`;
+                row.onclick = () => toggleFav(app.name);
+                row.innerHTML = `<span>${app.name}</span><div style="color:var(--accent)">${isFav ? '✓' : ''}</div>`;
+                container.appendChild(row);
+            });
+        }
+        function openSettings() { renderSettingsList(); document.getElementById('settings-modal').style.display = 'flex'; }
+        function closeSettings() { document.getElementById('settings-modal').style.display = 'none'; }
 
         function saveBg(input) {
             const reader = new FileReader();
@@ -200,9 +223,8 @@
                     const maxW = 1080; const scale = maxW / img.width;
                     canvas.width = maxW; canvas.height = img.height * scale;
                     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                    const base64 = canvas.toDataURL('image/jpeg', 0.7);
-                    localStorage.setItem('customBg', base64);
-                    document.body.style.backgroundImage = `url(${base64})`;
+                    localStorage.setItem('customBg', canvas.toDataURL('image/jpeg', 0.7));
+                    document.body.style.backgroundImage = `url(${localStorage.getItem('customBg')})`;
                 };
                 img.src = reader.result;
             }
@@ -210,8 +232,9 @@
         }
         function clearBg() { localStorage.removeItem('customBg'); document.body.style.backgroundImage = 'none'; }
 
+        // --- NAVIGATION ---
         function handleScrub(e) {
-            if (document.querySelector('.modal[style*="display: flex"]')) return;
+            if (document.querySelector('.modal[style*="display: flex"]') || body.classList.contains('is-searching')) return;
             e.preventDefault();
             body.classList.remove('show-only-favs');
             const touch = e.touches[0];
@@ -221,7 +244,6 @@
             const target = document.getElementById('header-' + letter);
             if (target) window.scrollTo(0, target.offsetTop - 120);
             
-            // Welle
             document.querySelectorAll('.nav-letter').forEach(l => {
                 const rect = l.getBoundingClientRect();
                 const dist = Math.abs(touch.clientY - (rect.top + rect.height / 2));
@@ -234,7 +256,6 @@
                 }
             });
         }
-
         navZone.addEventListener('touchstart', handleScrub);
         navZone.addEventListener('touchmove', handleScrub);
         navZone.addEventListener('touchend', () => {
