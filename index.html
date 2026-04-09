@@ -5,24 +5,29 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
     <style>
         :root { 
-            /* Hintergrund-Bild URL hier eintragen */
-            --bg-image: url('https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=2564&auto=format&fit=crop');
+            /* --- HINTERGRUND-BILD HIER EINTRAGEN --- */
+            /* Ersetze die URL unten durch dein Bild (z.B. von einem Hoster oder lokal) */
+            --bg-image: url('https://www.rakusoft.com/Niagara/Wiesel.jpg');
             
             --text-main: rgba(255,255,255,0.95);
             --text-sec: rgba(255,255,255,0.4);
             --nav-text: rgba(255,255,255,0.15);
+            
+            /* Wellen-Feintuning */
             --wave-range: 150px; 
-            --wave-scale: 3.2;
+            --wave-scale: 3.2;   /* Etwas kleiner als vorher */
         }
         
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; outline: none; }
         
         body {
+            /* Hintergrund-Logik */
             background-color: #000;
             background-image: var(--bg-image);
             background-size: cover;
             background-position: center;
             background-attachment: fixed;
+            
             color: var(--text-main);
             font-family: sans-serif;
             margin: 0;
@@ -32,17 +37,18 @@
             user-select: none;
         }
 
+        /* Overlay für bessere Lesbarkeit über dem Bild */
         body::before {
             content: "";
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.5); 
+            background: rgba(0,0,0,0.5); /* Dunkelt das Bild ab, damit Text lesbar bleibt */
             z-index: -1;
         }
 
-        .clock { font-size: 68px; font-weight: 200; margin-bottom: 5px; }
-        .date { font-size: 16px; color: var(--text-sec); margin-bottom: 50px; text-transform: uppercase; letter-spacing: 1.5px; }
+        .clock { font-size: 68px; font-weight: 200; margin-bottom: 5px; position: relative; }
+        .date { font-size: 16px; color: var(--text-sec); margin-bottom: 50px; text-transform: uppercase; letter-spacing: 1.5px; position: relative; }
         
-        .app-list { list-style: none; padding: 0; margin: 0; position: relative; z-index: 10; }
+        .app-list { list-style: none; padding: 0; margin: 0; position: relative; }
         .app-item { padding: 16px 0; font-size: 23px; font-weight: 300; display: flex; align-items: center; gap: 20px; }
         .app-icon { width: 34px; height: 34px; border-radius: 10px; filter: grayscale(100%); opacity: 0.8; }
 
@@ -61,17 +67,13 @@
             will-change: transform;
         }
 
-        /* Nur Favoriten anzeigen */
-        .show-only-favs .all-apps-item, 
-        .show-only-favs .letter-header { display: none; }
+        .hide-all .all-apps-item, .hide-all .letter-header { display: none; }
     </style>
 </head>
-<body class="show-only-favs" id="mainBody">
+<body class="hide-all">
     
-    <div onclick="resetToFavs()">
-        <div class="clock" id="clock">00:00</div>
-        <div class="date" id="date">Lade...</div>
-    </div>
+    <div class="clock" id="clock">00:00</div>
+    <div class="date" id="date">Lade...</div>
     
     <div id="nav-zone"></div>
     <ul class="app-list" id="appList"></ul>
@@ -79,8 +81,9 @@
     <script>
         const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
         const navZone = document.getElementById('nav-zone');
-        const body = document.getElementById('mainBody');
+        const body = document.body;
         
+        // --- FAVORITEN-LISTE ---
         const myFavorites = ["Telefon", "WhatsApp", "Chrome", "Karten", "Einstellungen", "Galerie"];
 
         function updateTime() {
@@ -97,22 +100,25 @@
             navZone.appendChild(s);
         });
 
-        // Zurück zur Favoriten-Ansicht
-        function resetToFavs() {
-            body.classList.add('show-only-favs');
-            window.scrollTo(0, 0);
-        }
-
         function applyWave(touchY) {
             const letters = document.querySelectorAll('.nav-letter');
+            const range = 150;
+            const maxScale = 3.2;
+
             letters.forEach(letter => {
                 const rect = letter.getBoundingClientRect();
                 const centerY = rect.top + rect.height / 2;
                 const dist = Math.abs(touchY - centerY);
-                if (dist < 150) {
-                    const factor = 1 - (dist / 150);
+                
+                if (dist < range) {
+                    const factor = 1 - (dist / range);
                     const eased = factor * factor * (3 - 2 * factor); 
-                    letter.style.transform = `scale(${1 + 2.2 * eased}) translateX(${-90 * eased}px)`;
+                    const scale = 1 + (maxScale - 1) * eased;
+                    
+                    // Versatz nach links (moderatere -90px statt -140px)
+                    const xOffset = -90 * eased; 
+
+                    letter.style.transform = `scale(${scale}) translateX(${xOffset}px)`;
                     letter.style.color = `rgba(255,255,255,${0.2 + 0.8 * eased})`;
                 } else {
                     letter.style.transform = `scale(1) translateX(0px)`;
@@ -124,7 +130,7 @@
         function handleScrub(e) {
             e.preventDefault();
             const touch = e.touches[0];
-            body.classList.remove('show-only-favs'); // Drawer öffnen
+            body.classList.remove('hide-all');
             applyWave(touch.clientY);
             
             const bounds = navZone.getBoundingClientRect();
@@ -138,7 +144,8 @@
         navZone.addEventListener('touchstart', handleScrub);
         navZone.addEventListener('touchmove', handleScrub);
         navZone.addEventListener('touchend', () => {
-            // Welle optisch zurücksetzen, aber Liste offen lassen!
+            body.classList.add('hide-all');
+            window.scrollTo(0, 0);
             document.querySelectorAll('.nav-letter').forEach(l => {
                 l.style.transform = `scale(1) translateX(0px)`;
                 l.style.color = `var(--nav-text)`;
@@ -149,13 +156,7 @@
             const apps = JSON.parse(json);
             const list = document.getElementById('appList');
             list.innerHTML = '';
-            
-            // Favoriten
-            apps.filter(a => myFavorites.includes(a.name)).forEach(app => {
-                list.appendChild(createItem(app, "fav-item"));
-            });
-
-            // Rest der Liste
+            apps.filter(a => myFavorites.includes(a.name)).forEach(app => list.appendChild(createItem(app, "fav-item")));
             let last = '';
             apps.forEach(app => {
                 const first = app.name[0].toUpperCase();
@@ -171,10 +172,7 @@
             const li = document.createElement('li');
             li.className = 'app-item ' + cls;
             li.innerHTML = `<img class="app-icon" src="data:image/png;base64,${app.icon}"> <span>${app.name}</span>`;
-            li.onclick = () => {
-                AndroidBridge.launchApp(app.packageName);
-                setTimeout(resetToFavs, 1000); // Wenn man zurückkommt, sind wieder Favoriten da
-            };
+            li.onclick = () => AndroidBridge.launchApp(app.packageName);
             return li;
         }
 
