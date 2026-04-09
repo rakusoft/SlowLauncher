@@ -35,26 +35,27 @@ jobs:
       - name: Build Android Project & Inject Bridge
         run: |
           npx cap add android
-          
-          # 1. Launcher-Berechtigung & Sichtbarkeit für ALLE Apps (Android 11+)
           MANIFEST="android/app/src/main/AndroidManifest.xml"
           sed -i '/<application/i <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" />' $MANIFEST
           sed -i '/<category android:name="android.intent.category.LAUNCHER" \/>/a <category android:name="android.intent.category.HOME" />\n<category android:name="android.intent.category.DEFAULT" />' $MANIFEST
           
-          # 2. Native Brücke (Java)
           cat <<EOF > android/app/src/main/java/com/rakusoft/slowlauncher/MainActivity.java
           package com.rakusoft.slowlauncher;
           import android.content.Intent;
           import android.content.pm.ResolveInfo;
+          import android.graphics.Bitmap;
+          import android.graphics.Canvas;
+          import android.graphics.drawable.Drawable;
           import android.os.Bundle;
+          import android.util.Base64;
           import android.webkit.JavascriptInterface;
           import android.webkit.WebView;
           import com.getcapacitor.BridgeActivity;
           import org.json.JSONArray;
           import org.json.JSONObject;
+          import java.io.ByteArrayOutputStream;
           import java.util.List;
           import java.util.Collections;
-          import java.util.Comparator;
 
           public class MainActivity extends BridgeActivity {
               @Override
@@ -70,18 +71,24 @@ jobs:
                               mainIntent.addCategory(Intent.CATEGORY_LAUNCHER);
                               List<ResolveInfo> pkgAppsList = getPackageManager().queryIntentActivities(mainIntent, 0);
                               
-                              Collections.sort(pkgAppsList, new Comparator<ResolveInfo>() {
-                                  @Override
-                                  public int compare(ResolveInfo a, ResolveInfo b) {
-                                      return a.loadLabel(getPackageManager()).toString().compareToIgnoreCase(b.loadLabel(getPackageManager()).toString());
-                                  }
-                              });
+                              Collections.sort(pkgAppsList, (a, b) -> a.loadLabel(getPackageManager()).toString().compareToIgnoreCase(b.loadLabel(getPackageManager()).toString()));
 
                               JSONArray apps = new JSONArray();
                               for (ResolveInfo ad : pkgAppsList) {
                                   JSONObject app = new JSONObject();
                                   app.put("name", ad.loadLabel(getPackageManager()).toString());
                                   app.put("packageName", ad.activityInfo.packageName);
+                                  
+                                  // Icon zu Base64 konvertieren
+                                  Drawable icon = ad.loadIcon(getPackageManager());
+                                  Bitmap bitmap = Bitmap.createBitmap(icon.getIntrinsicWidth(), icon.getIntrinsicHeight(), Bitmap.Config.ARGB_8888);
+                                  Canvas canvas = new Canvas(bitmap);
+                                  icon.setBounds(0, 0, canvas.getWidth(), canvas.getHeight());
+                                  icon.draw(canvas);
+                                  ByteArrayOutputStream stream = new ByteArrayOutputStream();
+                                  bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream);
+                                  app.put("icon", Base64.encodeToString(stream.toByteArray(), Base64.NO_WRAP));
+                                  
                                   apps.put(app);
                               }
                               final String json = apps.toString();
