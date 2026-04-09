@@ -15,24 +15,15 @@
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; outline: none; }
         
         body {
-            background-color: transparent;
-            background-size: cover;
-            background-position: center;
-            background-attachment: fixed;
-            color: var(--text-main);
-            font-family: sans-serif;
-            margin: 0;
-            padding: calc(env(safe-area-inset-top) + 60px) 80px 300px 30px;
-            min-height: 100vh;
-            overflow-x: hidden;
-            user-select: none;
+            background-color: transparent; background-size: cover; background-position: center;
+            background-attachment: fixed; color: var(--text-main); font-family: sans-serif;
+            margin: 0; padding: calc(env(safe-area-inset-top) + 60px) 80px 300px 30px;
+            min-height: 100vh; overflow-x: hidden; user-select: none;
         }
 
         body::before {
-            content: "";
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.5); 
-            z-index: -1;
+            content: ""; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5); z-index: -1;
         }
 
         #top-zone { margin-bottom: 30px; cursor: pointer; }
@@ -55,22 +46,20 @@
         /* Einstellungen Overlay */
         #settings-modal {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.95); z-index: 2000;
+            background: rgba(0,0,0,0.98); z-index: 2000;
             display: none; flex-direction: column; padding: 60px 20px;
             overflow-y: auto;
-            user-select: auto; /* Erlaubt Interaktion */
         }
-        .btn { background: #333; color: #fff; border: none; padding: 18px; border-radius: 15px; font-size: 16px; margin-bottom: 15px; width: 100%; }
+        .btn { background: #333; color: #fff; border: none; padding: 18px; border-radius: 15px; font-size: 16px; margin-bottom: 15px; width: 100%; text-align: center; }
         
-        .fav-manager { margin-top: 20px; }
+        .fav-manager { margin-top: 10px; }
         .fav-row { 
             display: flex; align-items: center; justify-content: space-between; 
-            padding: 15px 10px; border-bottom: 1px solid #222;
-            cursor: pointer;
+            padding: 18px 10px; border-bottom: 1px solid #222;
         }
-        .fav-row:active { background: #222; }
-        .fav-row span { font-size: 18px; pointer-events: none; }
-        .checkbox { width: 25px; height: 25px; accent-color: #fff; pointer-events: none; }
+        .fav-row.active span { color: #fff; font-weight: bold; }
+        .fav-row.inactive span { color: #555; }
+        .check-mark { font-size: 22px; width: 30px; text-align: center; }
     </style>
 </head>
 <body class="show-only-favs" id="mainBody">
@@ -90,10 +79,10 @@
         <button class="btn" onclick="document.getElementById('bgInput').click()">Hintergrundbild ändern</button>
         <button class="btn" onclick="clearBg()">Hintergrund zurücksetzen</button>
         
-        <h3 style="font-weight: 300; margin-top: 30px; color: var(--text-sec);">Favoriten wählen</h3>
+        <h3 style="font-weight: 300; margin-top: 30px; color: var(--text-sec); margin-bottom: 10px;">Favoriten wählen</h3>
         <div id="fav-list-container" class="fav-manager"></div>
         
-        <button class="btn" onclick="closeSettings()" style="background: #555; margin-top: 40px;">Fertig</button>
+        <button class="btn" onclick="closeSettings()" style="background: #007AFF; margin-top: 30px; font-weight: bold;">Fertig</button>
         <input type="file" id="bgInput" style="display:none" accept="image/*" onchange="saveBg(this)">
     </div>
 
@@ -102,8 +91,8 @@
         const navZone = document.getElementById('nav-zone');
         const body = document.getElementById('mainBody');
         let allAppsGlobal = [];
-        let touchStartX = 0;
 
+        // Favoriten-Logik
         let myFavorites = JSON.parse(localStorage.getItem('myFavorites')) || ["Telefon", "WhatsApp"];
 
         const savedBg = localStorage.getItem('customBg');
@@ -125,53 +114,37 @@
 
         function resetToFavs() { body.classList.add('show-only-favs'); window.scrollTo(0, 0); }
 
-        // Gesten-Schutz: Deaktiviert Wischen, wenn Modal offen ist
-        document.addEventListener('touchstart', e => {
-            if (document.getElementById('settings-modal').style.display === 'flex') return;
-            touchStartX = e.changedTouches[0].screenX;
-        });
-
-        document.addEventListener('touchend', e => {
-            if (document.getElementById('settings-modal').style.display === 'flex') return;
-            let touchEndX = e.changedTouches[0].screenX;
-            if (touchEndX - touchStartX > 150) resetToFavs();
-        });
-
-        function toggleFavorite(appName) {
+        // --- FAVORITEN VERWALTUNG NEU ---
+        function toggleFav(appName) {
             if (myFavorites.includes(appName)) {
                 myFavorites = myFavorites.filter(f => f !== appName);
             } else {
                 myFavorites.push(appName);
             }
             localStorage.setItem('myFavorites', JSON.stringify(myFavorites));
-            
-            // UI im Modal sofort aktualisieren
-            const rows = document.querySelectorAll('.fav-row');
-            rows.forEach(row => {
-                if (row.getAttribute('data-app') === appName) {
-                    row.querySelector('input').checked = myFavorites.includes(appName);
-                }
-            });
-            
-            renderMainList();
+            renderSettingsList(); // Menü-Ansicht aktualisieren
+            renderMainList();     // Startseite im Hintergrund aktualisieren
         }
 
-        function openSettings() {
+        function renderSettingsList() {
             const container = document.getElementById('fav-list-container');
             container.innerHTML = '';
             
             allAppsGlobal.forEach(app => {
                 const isFav = myFavorites.includes(app.name);
                 const row = document.createElement('div');
-                row.className = 'fav-row';
-                row.setAttribute('data-app', app.name);
-                row.onclick = () => toggleFavorite(app.name); // Ganze Zeile klickbar
+                row.className = `fav-row ${isFav ? 'active' : 'inactive'}`;
+                row.onclick = () => toggleFav(app.name);
                 row.innerHTML = `
                     <span>${app.name}</span>
-                    <input type="checkbox" class="checkbox" ${isFav ? 'checked' : ''}>
+                    <div class="check-mark">${isFav ? '✓' : ''}</div>
                 `;
                 container.appendChild(row);
             });
+        }
+
+        function openSettings() {
+            renderSettingsList();
             document.getElementById('settings-modal').style.display = 'flex';
         }
 
@@ -189,6 +162,7 @@
             setBtn.innerHTML = `<span style="font-size: 30px; width: 34px; text-align: center;">⚙</span> <span>Launcher-Einstellungen</span>`;
             setBtn.onclick = openSettings;
             list.appendChild(setBtn);
+
             let last = '';
             allAppsGlobal.forEach(app => {
                 const first = app.name[0].toUpperCase();
@@ -224,14 +198,15 @@
                     const maxW = 1080; const scale = maxW / img.width;
                     canvas.width = maxW; canvas.height = img.height * scale;
                     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                    const base = canvas.toDataURL('image/jpeg', 0.7);
-                    localStorage.setItem('customBg', base);
-                    document.body.style.backgroundImage = `url(${base})`;
+                    const base64 = canvas.toDataURL('image/jpeg', 0.7);
+                    localStorage.setItem('customBg', base64);
+                    document.body.style.backgroundImage = `url(${base64})`;
                 };
                 img.src = reader.result;
             }
             reader.readAsDataURL(file);
         }
+
         function clearBg() { localStorage.removeItem('customBg'); document.body.style.backgroundImage = 'none'; }
 
         function applyWave(touchY) {
