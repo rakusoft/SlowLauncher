@@ -45,7 +45,6 @@
         #reset-gap { position: fixed; right: 0; top: 0; width: 80px; height: 20vh; z-index: 1001; }
         .nav-letter { flex: 1; display: flex; align-items: center; justify-content: center; font-size: 8px; color: var(--nav-text); font-weight: bold; transition: transform 0.08s ease-out; }
 
-        /* Verstecken/Anzeigen Logik */
         .show-only-favs .all-apps-item, .show-only-favs .letter-header { display: none; }
         .is-searching #nav-zone, .is-searching .fav-item, .is-searching .letter-header { display: none; }
 
@@ -114,7 +113,7 @@
         function exportSettings() {
             const data = { favs: myFavorites, bg: localStorage.getItem('customBg') };
             document.getElementById('backupArea').value = btoa(unescape(encodeURIComponent(JSON.stringify(data))));
-            alert("Code im Textfeld erzeugt!");
+            alert("Sicherungscode im Textfeld erzeugt!");
         }
 
         function importSettings() {
@@ -172,7 +171,6 @@
         function createItem(app, cls) {
             const li = document.createElement('li'); li.className = 'app-item ' + cls;
             li.innerHTML = `<img class="app-icon" src="data:image/png;base64,${app.icon}"> <span>${app.name}</span>`;
-            
             let timer;
             li.ontouchstart = () => { timer = setTimeout(() => { if(window.AndroidBridge) AndroidBridge.openAppInfo(app.packageName); }, 800); };
             li.ontouchend = () => { clearTimeout(timer); };
@@ -215,6 +213,7 @@
             r.readAsDataURL(input.files[0]);
         }
 
+        // --- DYNAMISCHE WELLE MIT SICHERHEITSABSTAND ---
         function applyWave(tX, tY) {
             const ls = document.querySelectorAll('.nav-letter');
             const hF = Math.max(0.3, Math.min(1.0, (window.innerWidth - tX) / 120)); 
@@ -222,7 +221,9 @@
                 const r = l.getBoundingClientRect(); const cY = r.top + r.height / 2; const dY = Math.abs(tY - cY);
                 if (dY < 120) {
                     const fY = 1 - (dY / 120); const eY = fY * fY * (3 - 2 * fY); 
-                    l.style.transform = `scale(${1 + 1.8 * eY * hF}) translateX(${-60 * eY * hF}px)`;
+                    // Hier haben wir den Versatz (translateX) von -60 auf -130 erhöht,
+                    // damit die Buchstaben links neben dem Daumen "rausschweben".
+                    l.style.transform = `scale(${1 + 1.8 * eY * hF}) translateX(${-130 * eY * hF}px)`;
                     l.style.color = `rgba(255,255,255,${0.2 + 0.8 * eY * hF})`;
                 } else { l.style.transform = 'scale(1) translateX(0px)'; l.style.color = 'var(--nav-text)'; }
             });
@@ -230,8 +231,7 @@
 
         function handleScrub(e) {
             if (document.querySelector('.modal[style*="display: flex"]') || body.classList.contains('is-searching')) return;
-            e.preventDefault();
-            body.classList.remove('show-only-favs'); // DAS HAT GEFEHLT! Öffnet die Liste beim Berühren
+            e.preventDefault(); body.classList.remove('show-only-favs');
             const t = e.touches[0]; applyWave(t.clientX, t.clientY);
             const b = navZone.getBoundingClientRect();
             let rY = Math.max(0, Math.min(0.99, (t.clientY - b.top) / b.height));
