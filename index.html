@@ -51,7 +51,7 @@
         .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.98); z-index: 2000; display: none; flex-direction: column; padding: 60px 25px; overflow-y: auto; }
         .btn { background: #222; color: #fff; border: 1px solid #333; padding: 14px; border-radius: 10px; font-size: 14px; margin-bottom: 10px; width: 100%; text-align: center; }
         
-        textarea { background: #111; color: #aaa; border: 1px solid #333; padding: 10px; border-radius: 8px; font-family: monospace; font-size: 10px; height: 100px; margin-bottom: 10px; resize: none; user-select: all; }
+        textarea { background: #111; color: #aaa; border: 1px solid #333; padding: 10px; border-radius: 8px; font-family: monospace; font-size: 10px; height: 120px; margin-bottom: 10px; resize: none; user-select: all; word-break: break-all; }
         
         .fav-row { display: flex; align-items: center; justify-content: space-between; padding: 12px 10px; border-bottom: 1px solid #1a1a1a; }
         .fav-row.active span { color: #fff; }
@@ -77,11 +77,14 @@
     <div id="settings-modal" class="modal">
         <h2 style="font-weight: 200;">Einstellungen</h2>
         <button class="btn" onclick="document.getElementById('bgInput').click()">Hintergrund ändern</button>
-        <textarea id="backupArea" placeholder="Backup-Code..."></textarea>
+        
+        <h4 style="font-weight: 300; margin: 15px 0 5px 0; font-size: 12px; color: var(--text-sec);">Backup & Restore</h4>
+        <textarea id="backupArea" placeholder="Code hier einfügen oder erzeugen..."></textarea>
         <div style="display: flex; gap: 10px;">
-            <button class="btn" style="flex:1" onclick="exportSettings()">Code erzeugen</button>
-            <button class="btn" style="flex:1; background: var(--accent);" onclick="importSettings()">Code laden</button>
+            <button class="btn" style="flex:1" onclick="exportSettings()">Export</button>
+            <button class="btn" style="flex:1; background: var(--accent);" onclick="importSettings()">Import</button>
         </div>
+
         <div id="fav-list-container"></div>
         <button class="btn" onclick="closeSettings()" style="background:#444; margin-top:20px;">Fertig</button>
         <input type="file" id="bgInput" style="display:none" accept="image/*" onchange="saveBg(this)">
@@ -110,20 +113,50 @@
             navZone.appendChild(s);
         });
 
+        // --- ROBUSTERES BACKUP SYSTEM ---
         function exportSettings() {
-            const data = { favs: myFavorites, bg: localStorage.getItem('customBg') };
-            document.getElementById('backupArea').value = btoa(unescape(encodeURIComponent(JSON.stringify(data))));
-            alert("Sicherungscode im Textfeld erzeugt!");
+            try {
+                const data = { favs: myFavorites, bg: localStorage.getItem('customBg') };
+                const json = JSON.stringify(data);
+                // Standard Base64 ohne URI-Umwege für bessere Kompatibilität
+                const b64 = btoa(unescape(encodeURIComponent(json)));
+                document.getElementById('backupArea').value = b64;
+                alert("Code erzeugt! Bitte ALLES im Textfeld kopieren.");
+            } catch(e) { alert("Export fehlgeschlagen: " + e.message); }
         }
 
         function importSettings() {
+            let code = document.getElementById('backupArea').value.trim();
+            // Entferne Zeilenumbrüche und Leerzeichen (wichtig beim Kopieren aus Chats)
+            code = code.replace(/\s/g, ''); 
+            if (!code) return;
+
             try {
-                const code = document.getElementById('backupArea').value.trim();
-                const data = JSON.parse(decodeURIComponent(escape(atob(code))));
-                myFavorites = data.favs; localStorage.setItem('myFavorites', JSON.stringify(myFavorites));
-                if (data.bg) { localStorage.setItem('customBg', data.bg); document.body.style.backgroundImage = `url(${data.bg})`; }
-                renderList(allAppsGlobal); alert("Wiederhergestellt!");
-            } catch(e) { alert("Fehler beim Import!"); }
+                let decoded;
+                try {
+                    // Versuch 1: Moderner Weg (mit UTF-8 Schutz)
+                    decoded = decodeURIComponent(escape(atob(code)));
+                } catch(e) {
+                    // Versuch 2: Einfacher Weg (falls der Code alt ist)
+                    decoded = atob(code);
+                }
+
+                const data = JSON.parse(decoded);
+                if (data.favs) {
+                    myFavorites = data.favs;
+                    localStorage.setItem('myFavorites', JSON.stringify(myFavorites));
+                }
+                if (data.bg) {
+                    localStorage.setItem('customBg', data.bg);
+                    document.body.style.backgroundImage = `url(${data.bg})`;
+                }
+                renderList(allAppsGlobal);
+                alert("Wiederherstellung erfolgreich!");
+                closeSettings();
+            } catch(e) { 
+                alert("Fehler beim Import: Der Code ist unvollständig oder ungültig."); 
+                console.error(e);
+            }
         }
 
         function handleSearch(q) {
@@ -144,7 +177,7 @@
             c.innerHTML = evs.length === 0 ? '<p>Keine Termine.</p>' : '';
             evs.forEach(e => {
                 const d = new Date(e.start); const div = document.createElement('div'); div.className = 'event-item';
-                div.innerHTML = `<div style="color:var(--text-sec); font-size:11px;">${d.toLocaleDateString('de-DE', {weekday:'short'})} • ${e.allDay?'Ganztägig':d.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</div><div>${e.title}</div>`;
+                div.innerHTML = `<div style="color:var(--text-sec); font-size:11px;">${d.toLocaleDateString('de-DE', {weekday:'short', day:'numeric'})} • ${e.allDay?'Ganztägig':d.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</div><div>${e.title}</div>`;
                 c.appendChild(div);
             });
         };
@@ -171,6 +204,7 @@
         function createItem(app, cls) {
             const li = document.createElement('li'); li.className = 'app-item ' + cls;
             li.innerHTML = `<img class="app-icon" src="data:image/png;base64,${app.icon}"> <span>${app.name}</span>`;
+            
             let timer;
             li.ontouchstart = () => { timer = setTimeout(() => { if(window.AndroidBridge) AndroidBridge.openAppInfo(app.packageName); }, 800); };
             li.ontouchend = () => { clearTimeout(timer); };
@@ -187,7 +221,7 @@
         }
 
         function renderSettingsList() {
-            const c = document.getElementById('fav-list-container'); c.innerHTML = '<h4 style="font-weight:300;margin-top:20px;color:var(--text-sec);">Favoriten</h4>';
+            const c = document.getElementById('fav-list-container'); c.innerHTML = '<h4 style="font-weight:300;margin-top:20px;color:var(--text-sec); font-size: 12px;">Favoriten wählen</h4>';
             allAppsGlobal.forEach(a => {
                 const is = myFavorites.includes(a.name); const r = document.createElement('div');
                 r.className = `fav-row ${is?'active':''}`; r.onclick = () => toggleFav(a.name);
@@ -213,7 +247,6 @@
             r.readAsDataURL(input.files[0]);
         }
 
-        // --- DYNAMISCHE WELLE MIT SICHERHEITSABSTAND ---
         function applyWave(tX, tY) {
             const ls = document.querySelectorAll('.nav-letter');
             const hF = Math.max(0.3, Math.min(1.0, (window.innerWidth - tX) / 120)); 
@@ -221,8 +254,6 @@
                 const r = l.getBoundingClientRect(); const cY = r.top + r.height / 2; const dY = Math.abs(tY - cY);
                 if (dY < 120) {
                     const fY = 1 - (dY / 120); const eY = fY * fY * (3 - 2 * fY); 
-                    // Hier haben wir den Versatz (translateX) von -60 auf -130 erhöht,
-                    // damit die Buchstaben links neben dem Daumen "rausschweben".
                     l.style.transform = `scale(${1 + 1.8 * eY * hF}) translateX(${-130 * eY * hF}px)`;
                     l.style.color = `rgba(255,255,255,${0.2 + 0.8 * eY * hF})`;
                 } else { l.style.transform = 'scale(1) translateX(0px)'; l.style.color = 'var(--nav-text)'; }
@@ -231,7 +262,8 @@
 
         function handleScrub(e) {
             if (document.querySelector('.modal[style*="display: flex"]') || body.classList.contains('is-searching')) return;
-            e.preventDefault(); body.classList.remove('show-only-favs');
+            e.preventDefault();
+            body.classList.remove('show-only-favs');
             const t = e.touches[0]; applyWave(t.clientX, t.clientY);
             const b = navZone.getBoundingClientRect();
             let rY = Math.max(0, Math.min(0.99, (t.clientY - b.top) / b.height));
