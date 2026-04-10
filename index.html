@@ -16,7 +16,7 @@
         body {
             background-color: #000; background-size: cover; background-position: center;
             background-attachment: fixed; color: var(--text-main); font-family: sans-serif;
-            margin: 0; padding: calc(env(safe-area-inset-top) + 30px) 80px 300px 30px;
+            margin: 0; padding: calc(env(safe-area-inset-top) + 20px) 70px 300px 25px;
             min-height: 100vh; overflow-x: hidden; user-select: none;
         }
 
@@ -25,61 +25,66 @@
             background: rgba(0,0,0,0.5); z-index: -1;
         }
 
-        #top-zone { margin-bottom: 15px; z-index: 100; position: relative; }
-        .clock { font-size: 60px; font-weight: 200; margin-bottom: 2px; cursor: pointer; }
-        .date { font-size: 14px; color: var(--text-sec); text-transform: uppercase; letter-spacing: 1.2px; margin-bottom: 20px; cursor: pointer; }
+        #top-zone { margin-bottom: 10px; z-index: 100; position: relative; }
+        .clock { font-size: 54px; font-weight: 200; margin-bottom: 0px; cursor: pointer; }
+        .date { font-size: 13px; color: var(--text-sec); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 15px; cursor: pointer; }
         
         #appSearch {
-            width: 100%; background: rgba(255,255,255,0.1); border: none;
-            border-radius: 10px; padding: 10px 15px; color: #fff; font-size: 16px;
-            backdrop-filter: blur(10px); margin-bottom: 20px;
+            width: 100%; background: rgba(255,255,255,0.08); border: none;
+            border-radius: 8px; padding: 8px 12px; color: #fff; font-size: 15px;
+            backdrop-filter: blur(10px); margin-bottom: 15px;
         }
 
         .app-list { list-style: none; padding: 0; margin: 0; position: relative; z-index: 10; }
-        .app-item { padding: 12px 0; font-size: 19px; font-weight: 300; display: flex; align-items: center; gap: 15px; }
-        .app-icon { width: 28px; height: 28px; border-radius: 8px; filter: grayscale(100%); opacity: 0.7; }
+        .app-item { padding: 8px 0; font-size: 17px; font-weight: 300; display: flex; align-items: center; gap: 12px; }
+        .app-icon { width: 26px; height: 26px; border-radius: 6px; filter: grayscale(100%); opacity: 0.7; }
 
-        .header { color: var(--text-sec); font-size: 12px; margin-top: 35px; font-weight: bold; text-transform: uppercase; scroll-margin-top: 120px; }
+        .header { color: var(--text-sec); font-size: 11px; margin-top: 25px; font-weight: bold; text-transform: uppercase; scroll-margin-top: 100px; }
         
-        #nav-zone { position: fixed; right: 0; top: 25vh; width: 80px; height: 70vh; z-index: 1000; display: flex; flex-direction: column; justify-content: center; touch-action: none; }
-        #reset-gap { position: fixed; right: 0; top: 0; width: 80px; height: 25vh; z-index: 1001; }
-        .nav-letter { flex: 1; display: flex; align-items: center; justify-content: center; font-size: 9px; color: var(--nav-text); font-weight: bold; }
+        #nav-zone { position: fixed; right: 0; top: 20vh; width: 60px; height: 75vh; z-index: 1000; display: flex; flex-direction: column; justify-content: center; touch-action: none; }
+        .nav-letter { flex: 1; display: flex; align-items: center; justify-content: center; font-size: 8px; color: var(--nav-text); font-weight: bold; }
 
         .show-only-favs .all-apps-item, .show-only-favs .letter-header { display: none; }
         .is-searching #nav-zone, .is-searching .fav-item, .is-searching .letter-header { display: none; }
 
-        .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.98); z-index: 2000; display: none; flex-direction: column; padding: 60px 25px; overflow-y: auto; }
-        .btn { background: #333; color: #fff; border: none; padding: 16px; border-radius: 12px; font-size: 15px; margin-bottom: 12px; width: 100%; text-align: center; }
+        .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.98); z-index: 2000; display: none; flex-direction: column; padding: 50px 20px; overflow-y: auto; }
+        .btn { background: #222; color: #fff; border: 1px solid #333; padding: 14px; border-radius: 10px; font-size: 14px; margin-bottom: 10px; width: 100%; text-align: center; }
         
-        .fav-row { display: flex; align-items: center; justify-content: space-between; padding: 15px 10px; border-bottom: 1px solid #222; }
-        .fav-row.active span { color: #fff; font-weight: bold; }
-        .event-item { margin-bottom: 20px; border-left: 3px solid var(--accent); padding-left: 12px; }
+        textarea { background: #111; color: #aaa; border: 1px solid #333; padding: 10px; border-radius: 8px; font-family: monospace; font-size: 10px; height: 100px; margin-bottom: 10px; resize: none; }
+        
+        .fav-row { display: flex; align-items: center; justify-content: space-between; padding: 12px 10px; border-bottom: 1px solid #1a1a1a; }
+        .fav-row.active span { color: #fff; }
+        .event-item { margin-bottom: 15px; border-left: 2px solid var(--accent); padding-left: 10px; font-size: 14px; }
     </style>
 </head>
 <body class="show-only-favs" id="mainBody">
-    <div id="reset-gap" onclick="resetToFavs()"></div>
     <div id="top-zone">
         <div class="clock" id="clock" onclick="resetToFavs()">00:00</div>
         <div class="date" id="date" onclick="openCalendar()">Lade...</div>
-        <input type="text" id="appSearch" placeholder="Suche..." oninput="handleSearch(this.value)">
+        <input type="text" id="appSearch" placeholder="Suchen..." oninput="handleSearch(this.value)">
     </div>
     <div id="nav-zone"></div>
     <ul class="app-list" id="appList"></ul>
 
     <div id="calendar-modal" class="modal">
-        <h2 style="font-weight: 200;">Woche</h2>
+        <h2 style="font-weight: 200;">Termine</h2>
         <div id="calendar-content"></div>
-        <button class="btn" onclick="closeCalendar()" style="background:#555; margin-top:20px;">Schließen</button>
+        <button class="btn" onclick="closeCalendar()" style="margin-top:20px;">Schließen</button>
     </div>
 
     <div id="settings-modal" class="modal">
-        <h2 style="font-weight: 200;">Optionen</h2>
-        <button class="btn" onclick="document.getElementById('bgInput').click()">Bild ändern</button>
-        <button class="btn" onclick="exportSettings()">Backup: Code kopieren</button>
-        <button class="btn" onclick="importSettings()">Restore: Code einfügen</button>
-        <button class="btn" onclick="clearBg()">Bild löschen</button>
+        <h2 style="font-weight: 200;">Einstellungen</h2>
+        <button class="btn" onclick="document.getElementById('bgInput').click()">Hintergrund ändern</button>
+        
+        <h4 style="font-weight: 300; margin: 15px 0 5px 0;">Backup & Wiederherstellung</h4>
+        <textarea id="backupArea" placeholder="Sicherungscode hier kopieren oder einfügen..."></textarea>
+        <div style="display: flex; gap: 10px;">
+            <button class="btn" style="flex:1" onclick="exportSettings()">Code erzeugen</button>
+            <button class="btn" style="flex:1; background: var(--accent);" onclick="importSettings()">Code laden</button>
+        </div>
+
         <div id="fav-list-container"></div>
-        <button class="btn" onclick="closeSettings()" style="background:var(--accent); margin-top:20px;">Fertig</button>
+        <button class="btn" onclick="closeSettings()" style="background:#444; margin-top:20px;">Fertig</button>
         <input type="file" id="bgInput" style="display:none" accept="image/*" onchange="saveBg(this)">
     </div>
 
@@ -89,7 +94,7 @@
         const body = document.getElementById('mainBody');
         const searchInput = document.getElementById('appSearch');
         let allAppsGlobal = [];
-        let myFavorites = JSON.parse(localStorage.getItem('myFavorites')) || ["Telefon", "WhatsApp"];
+        let myFavorites = JSON.parse(localStorage.getItem('myFavorites')) || ["Telefon"];
 
         const savedBg = localStorage.getItem('customBg');
         if (savedBg) document.body.style.backgroundImage = `url(${savedBg})`;
@@ -106,28 +111,28 @@
             navZone.appendChild(s);
         });
 
-        // Backup & Restore
+        // Vereinfachtes Backup-System
         function exportSettings() {
             const data = { favs: myFavorites, bg: localStorage.getItem('customBg') };
-            const code = btoa(JSON.stringify(data));
-            prompt("Kopiere diesen Code zur Sicherung:", code);
+            document.getElementById('backupArea').value = btoa(unescape(encodeURIComponent(JSON.stringify(data))));
+            document.getElementById('backupArea').select();
+            alert("Code wurde erzeugt. Jetzt kopieren!");
         }
 
         function importSettings() {
-            const code = prompt("Füge deinen Sicherungs-Code hier ein:");
-            if (code) {
-                try {
-                    const data = JSON.parse(atob(code));
-                    myFavorites = data.favs;
-                    localStorage.setItem('myFavorites', JSON.stringify(myFavorites));
-                    if (data.bg) {
-                        localStorage.setItem('customBg', data.bg);
-                        document.body.style.backgroundImage = `url(${data.bg})`;
-                    }
-                    renderList(allAppsGlobal);
-                    alert("Wiederherstellung erfolgreich!");
-                } catch(e) { alert("Fehler beim Import!"); }
-            }
+            const code = document.getElementById('backupArea').value.trim();
+            if (!code) return;
+            try {
+                const data = JSON.parse(decodeURIComponent(escape(atob(code))));
+                myFavorites = data.favs;
+                localStorage.setItem('myFavorites', JSON.stringify(myFavorites));
+                if (data.bg) {
+                    localStorage.setItem('customBg', data.bg);
+                    document.body.style.backgroundImage = `url(${data.bg})`;
+                }
+                renderList(allAppsGlobal);
+                alert("Erfolgreich wiederhergestellt!");
+            } catch(e) { alert("Code ungültig!"); }
         }
 
         function handleSearch(q) {
@@ -148,7 +153,7 @@
             c.innerHTML = evs.length === 0 ? '<p>Keine Termine.</p>' : '';
             evs.forEach(e => {
                 const d = new Date(e.start); const div = document.createElement('div'); div.className = 'event-item';
-                div.innerHTML = `<div class="event-time">${d.toLocaleDateString('de-DE', {weekday:'short', day:'numeric'})} • ${e.allDay?'Ganztägig':d.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'})}</div><div>${e.title}</div>`;
+                div.innerHTML = `<div style="color:var(--text-sec); font-size:11px;">${d.toLocaleDateString('de-DE', {weekday:'short', day:'numeric'})} • ${e.allDay?'Ganztägig':d.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'})}</div><div>${e.title}</div>`;
                 c.appendChild(div);
             });
         };
@@ -158,7 +163,7 @@
             if (!filter) {
                 apps.filter(a => myFavorites.includes(a.name)).forEach(a => l.appendChild(createItem(a, "fav-item")));
                 const s = document.createElement('li'); s.className = 'app-item fav-item'; s.style.color = 'var(--text-sec)';
-                s.innerHTML = `<span style="font-size:24px;width:28px;text-align:center;">⚙</span> <span>Einstellungen</span>`;
+                s.innerHTML = `<span style="font-size:20px;width:26px;text-align:center;">⚙</span> <span style="font-size:15px;">Optionen</span>`;
                 s.onclick = openSettings; l.appendChild(s);
             }
             let last = '';
@@ -175,9 +180,12 @@
         function createItem(app, cls) {
             const li = document.createElement('li'); li.className = 'app-item ' + cls;
             li.innerHTML = `<img class="app-icon" src="data:image/png;base64,${app.icon}"> <span>${app.name}</span>`;
-            li.onclick = () => { AndroidBridge.launchApp(app.packageName); setTimeout(resetToFavs, 1000); };
-            // Langes Drücken für App-Info
-            li.oncontextmenu = (e) => { e.preventDefault(); if(window.AndroidBridge) AndroidBridge.openAppInfo(app.packageName); };
+            
+            let timer;
+            li.ontouchstart = () => { timer = setTimeout(() => { if(window.AndroidBridge) AndroidBridge.openAppInfo(app.packageName); }, 700); };
+            li.ontouchend = () => { clearTimeout(timer); };
+            li.onclick = () => { AndroidBridge.launchApp(app.packageName); setTimeout(resetToFavs, 800); };
+            
             return li;
         }
 
@@ -189,11 +197,11 @@
             renderSettingsList(); renderList(allAppsGlobal);
         }
         function renderSettingsList() {
-            const c = document.getElementById('fav-list-container'); c.innerHTML = '<h3 style="font-weight:300;margin-top:20px;color:var(--text-sec);">Favoriten</h3>';
+            const c = document.getElementById('fav-list-container'); c.innerHTML = '<h4 style="font-weight:300;margin-top:20px;color:var(--text-sec);">Favoriten wählen</h4>';
             allAppsGlobal.forEach(a => {
                 const is = myFavorites.includes(a.name); const r = document.createElement('div');
                 r.className = `fav-row ${is?'active':''}`; r.onclick = () => toggleFav(a.name);
-                r.innerHTML = `<span>${a.name}</span><div style="color:var(--accent)">${is?'✓':''}</div>`;
+                r.innerHTML = `<span style="font-size:14px;">${a.name}</span><div style="color:var(--accent)">${is?'✓':''}</div>`;
                 c.appendChild(r);
             });
         }
@@ -204,7 +212,7 @@
             const r = new FileReader(); r.onloadend = function() {
                 const img = new Image(); img.onload = function() {
                     const cv = document.createElement('canvas'); const ctx = cv.getContext('2d');
-                    const mW = 800; const sc = mW / img.width; cv.width = mW; cv.height = img.height * sc;
+                    const mW = 600; const sc = mW / img.width; cv.width = mW; cv.height = img.height * sc;
                     ctx.drawImage(img, 0, 0, cv.width, cv.height);
                     const b64 = cv.toDataURL('image/jpeg', 0.6);
                     localStorage.setItem('customBg', b64); document.body.style.backgroundImage = `url(${b64})`;
@@ -217,12 +225,12 @@
 
         function applyWave(tX, tY) {
             const ls = document.querySelectorAll('.nav-letter');
-            const hF = Math.max(0.3, Math.min(1.0, (window.innerWidth - tX) / 150)); 
+            const hF = Math.max(0.3, Math.min(1.0, (window.innerWidth - tX) / 120)); 
             ls.forEach(l => {
                 const r = l.getBoundingClientRect(); const cY = r.top + r.height / 2; const dY = Math.abs(tY - cY);
-                if (dY < 150) {
-                    const fY = 1 - (dY / 150); const eY = fY * fY * (3 - 2 * fY); 
-                    l.style.transform = `scale(${1 + 2.0 * eY * hF}) translateX(${-80 * eY * hF}px)`;
+                if (dY < 120) {
+                    const fY = 1 - (dY / 120); const eY = fY * fY * (3 - 2 * fY); 
+                    l.style.transform = `scale(${1 + 1.8 * eY * hF}) translateX(${-60 * eY * hF}px)`;
                     l.style.color = `rgba(255,255,255,${0.2 + 0.8 * eY * hF})`;
                 } else { l.style.transform = 'scale(1) translateX(0px)'; l.style.color = 'var(--nav-text)'; }
             });
@@ -230,12 +238,11 @@
 
         function handleScrub(e) {
             if (document.querySelector('.modal[style*="display: flex"]') || body.classList.contains('is-searching')) return;
-            e.preventDefault(); body.classList.remove('show-only-favs');
             const t = e.touches[0]; applyWave(t.clientX, t.clientY);
             const b = navZone.getBoundingClientRect();
             let rY = Math.max(0, Math.min(0.99, (t.clientY - b.top) / b.height));
             const target = document.getElementById('header-' + chars[Math.floor(rY * chars.length)]);
-            if (target) window.scrollTo(0, target.offsetTop - 120);
+            if (target) window.scrollTo(0, target.offsetTop - 100);
         }
         navZone.addEventListener('touchstart', handleScrub);
         navZone.addEventListener('touchmove', handleScrub);
@@ -243,7 +250,7 @@
             document.querySelectorAll('.nav-letter').forEach(l => { l.style.transform = 'scale(1) translateX(0px)'; l.style.color = 'var(--nav-text)'; });
         });
 
-        setTimeout(() => { if (window.AndroidBridge) { AndroidBridge.fetchApps(); AndroidBridge.fetchCalendar(); } }, 400);
+        setTimeout(() => { if (window.AndroidBridge) { AndroidBridge.fetchApps(); AndroidBridge.fetchCalendar(); } }, 300);
     </script>
 </body>
 </html>
