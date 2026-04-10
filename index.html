@@ -51,7 +51,7 @@
         .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.98); z-index: 2000; display: none; flex-direction: column; padding: 60px 25px; overflow-y: auto; }
         .btn { background: #222; color: #fff; border: 1px solid #333; padding: 14px; border-radius: 10px; font-size: 14px; margin-bottom: 10px; width: 100%; text-align: center; }
         
-        textarea { background: #111; color: #aaa; border: 1px solid #333; padding: 10px; border-radius: 8px; font-family: monospace; font-size: 10px; height: 120px; margin-bottom: 10px; resize: none; user-select: all; word-break: break-all; }
+        textarea { background: #111; color: #aaa; border: 1px solid #333; padding: 10px; border-radius: 8px; font-family: monospace; font-size: 11px; height: 80px; margin-bottom: 10px; resize: none; user-select: all; word-break: break-all; }
         
         .fav-row { display: flex; align-items: center; justify-content: space-between; padding: 12px 10px; border-bottom: 1px solid #1a1a1a; }
         .fav-row.active span { color: #fff; }
@@ -75,14 +75,16 @@
     </div>
 
     <div id="settings-modal" class="modal">
-        <h2 style="font-weight: 200;">Optionen</h2>
+        <h2 style="font-weight: 200;">Einstellungen</h2>
         <button class="btn" onclick="document.getElementById('bgInput').click()">Hintergrund ändern</button>
-        <h4 style="font-weight: 300; margin-top: 15px; font-size: 12px; color: var(--text-sec);">Backup & Restore</h4>
-        <textarea id="backupArea" placeholder="Code hier einfügen oder generieren..."></textarea>
+        
+        <h4 style="font-weight: 300; margin-top: 15px; font-size: 12px; color: var(--text-sec);">Favoriten-Backup (Ohne Bild)</h4>
+        <textarea id="backupArea" placeholder="Favoriten-Code hier..."></textarea>
         <div style="display: flex; gap: 10px;">
-            <button class="btn" style="flex:1" onclick="exportSettings()">Export</button>
-            <button class="btn" style="flex:1; background: var(--accent);" onclick="importSettings()">Import</button>
+            <button class="btn" style="flex:1" onclick="exportSettings()">Code erzeugen</button>
+            <button class="btn" style="flex:1; background: var(--accent);" onclick="importSettings()">Code laden</button>
         </div>
+
         <div id="fav-list-container"></div>
         <button class="btn" onclick="closeSettings()" style="background:#444; margin-top:20px;">Fertig</button>
         <input type="file" id="bgInput" style="display:none" accept="image/*" onchange="saveBg(this)">
@@ -111,14 +113,15 @@
             navZone.appendChild(s);
         });
 
+        // --- SCHLANKER EXPORT (NUR FAVORITEN) ---
         function exportSettings() {
             try {
-                const data = { favs: myFavorites, bg: localStorage.getItem('customBg') };
-                const str = JSON.stringify(data);
+                // Wir exportieren NUR das Array der Favoritennamen
+                const str = JSON.stringify(myFavorites);
                 const b64 = btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g, (match, p1) => String.fromCharCode('0x' + p1)));
                 document.getElementById('backupArea').value = b64;
-                alert("Code erzeugt! Bitte alles kopieren.");
-            } catch(e) { alert("Fehler!"); }
+                alert("Favoriten-Code erzeugt!");
+            } catch(e) { alert("Fehler beim Export!"); }
         }
 
         function importSettings() {
@@ -126,11 +129,17 @@
             if (!code) return;
             try {
                 const decoded = decodeURIComponent(Array.prototype.map.call(atob(code), (c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join(''));
-                const data = JSON.parse(decoded);
-                if (data.favs) { myFavorites = data.favs; localStorage.setItem('myFavorites', JSON.stringify(myFavorites)); }
-                if (data.bg) { localStorage.setItem('customBg', data.bg); document.body.style.backgroundImage = `url(${data.bg})`; }
-                renderList(allAppsGlobal); alert("Wiederhergestellt!"); closeSettings();
-            } catch(e) { alert("Code ungültig."); }
+                const favs = JSON.parse(decoded);
+                if (Array.isArray(favs)) {
+                    myFavorites = favs;
+                    localStorage.setItem('myFavorites', JSON.stringify(myFavorites));
+                    renderList(allAppsGlobal);
+                    alert("Favoriten erfolgreich geladen!");
+                    closeSettings();
+                } else {
+                    alert("Code-Format ungültig.");
+                }
+            } catch(e) { alert("Code unvollständig oder ungültig."); }
         }
 
         function handleSearch(q) {
@@ -207,9 +216,9 @@
             const r = new FileReader(); r.onloadend = function() {
                 const img = new Image(); img.onload = function() {
                     const cv = document.createElement('canvas'); const ctx = cv.getContext('2d');
-                    const mW = 600; const sc = mW / img.width; cv.width = mW; cv.height = img.height * sc;
+                    const mW = 800; const sc = mW / img.width; cv.width = mW; cv.height = img.height * sc;
                     ctx.drawImage(img, 0, 0, cv.width, cv.height);
-                    const b64 = cv.toDataURL('image/jpeg', 0.5);
+                    const b64 = cv.toDataURL('image/jpeg', 0.6);
                     localStorage.setItem('customBg', b64); document.body.style.backgroundImage = `url(${b64})`;
                 };
                 img.src = r.result;
