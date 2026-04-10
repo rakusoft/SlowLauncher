@@ -16,7 +16,7 @@
         body {
             background-color: #000; background-size: cover; background-position: center;
             background-attachment: fixed; color: var(--text-main); font-family: sans-serif;
-            margin: 0; padding: calc(env(safe-area-inset-top) + 20px) 70px 300px 25px;
+            margin: 0; padding: calc(env(safe-area-inset-top) + 30px) 70px 300px 25px;
             min-height: 100vh; overflow-x: hidden; user-select: none;
         }
 
@@ -25,14 +25,14 @@
             background: rgba(0,0,0,0.5); z-index: -1;
         }
 
-        #top-zone { margin-bottom: 10px; z-index: 100; position: relative; }
+        #top-zone { margin-bottom: 15px; z-index: 100; position: relative; }
         .clock { font-size: 54px; font-weight: 200; margin-bottom: 0px; cursor: pointer; }
-        .date { font-size: 13px; color: var(--text-sec); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 15px; cursor: pointer; }
+        .date { font-size: 13px; color: var(--text-sec); text-transform: uppercase; letter-spacing: 1.2px; margin-bottom: 20px; cursor: pointer; }
         
         #appSearch {
             width: 100%; background: rgba(255,255,255,0.08); border: none;
-            border-radius: 8px; padding: 8px 12px; color: #fff; font-size: 15px;
-            backdrop-filter: blur(10px); margin-bottom: 15px;
+            border-radius: 10px; padding: 10px 15px; color: #fff; font-size: 16px;
+            backdrop-filter: blur(10px); margin-bottom: 20px;
         }
 
         .app-list { list-style: none; padding: 0; margin: 0; position: relative; z-index: 10; }
@@ -42,22 +42,25 @@
         .header { color: var(--text-sec); font-size: 11px; margin-top: 25px; font-weight: bold; text-transform: uppercase; scroll-margin-top: 100px; }
         
         #nav-zone { position: fixed; right: 0; top: 20vh; width: 60px; height: 75vh; z-index: 1000; display: flex; flex-direction: column; justify-content: center; touch-action: none; }
-        .nav-letter { flex: 1; display: flex; align-items: center; justify-content: center; font-size: 8px; color: var(--nav-text); font-weight: bold; }
+        #reset-gap { position: fixed; right: 0; top: 0; width: 80px; height: 20vh; z-index: 1001; }
+        .nav-letter { flex: 1; display: flex; align-items: center; justify-content: center; font-size: 8px; color: var(--nav-text); font-weight: bold; transition: transform 0.08s ease-out; }
 
+        /* Verstecken/Anzeigen Logik */
         .show-only-favs .all-apps-item, .show-only-favs .letter-header { display: none; }
         .is-searching #nav-zone, .is-searching .fav-item, .is-searching .letter-header { display: none; }
 
-        .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.98); z-index: 2000; display: none; flex-direction: column; padding: 50px 20px; overflow-y: auto; }
+        .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.98); z-index: 2000; display: none; flex-direction: column; padding: 60px 25px; overflow-y: auto; }
         .btn { background: #222; color: #fff; border: 1px solid #333; padding: 14px; border-radius: 10px; font-size: 14px; margin-bottom: 10px; width: 100%; text-align: center; }
         
-        textarea { background: #111; color: #aaa; border: 1px solid #333; padding: 10px; border-radius: 8px; font-family: monospace; font-size: 10px; height: 100px; margin-bottom: 10px; resize: none; }
+        textarea { background: #111; color: #aaa; border: 1px solid #333; padding: 10px; border-radius: 8px; font-family: monospace; font-size: 10px; height: 100px; margin-bottom: 10px; resize: none; user-select: all; }
         
         .fav-row { display: flex; align-items: center; justify-content: space-between; padding: 12px 10px; border-bottom: 1px solid #1a1a1a; }
         .fav-row.active span { color: #fff; }
-        .event-item { margin-bottom: 15px; border-left: 2px solid var(--accent); padding-left: 10px; font-size: 14px; }
+        .event-item { margin-bottom: 15px; border-left: 2px solid var(--accent); padding-left: 10px; }
     </style>
 </head>
 <body class="show-only-favs" id="mainBody">
+    <div id="reset-gap" onclick="resetToFavs()"></div>
     <div id="top-zone">
         <div class="clock" id="clock" onclick="resetToFavs()">00:00</div>
         <div class="date" id="date" onclick="openCalendar()">Lade...</div>
@@ -75,14 +78,11 @@
     <div id="settings-modal" class="modal">
         <h2 style="font-weight: 200;">Einstellungen</h2>
         <button class="btn" onclick="document.getElementById('bgInput').click()">Hintergrund ändern</button>
-        
-        <h4 style="font-weight: 300; margin: 15px 0 5px 0;">Backup & Wiederherstellung</h4>
-        <textarea id="backupArea" placeholder="Sicherungscode hier kopieren oder einfügen..."></textarea>
+        <textarea id="backupArea" placeholder="Backup-Code..."></textarea>
         <div style="display: flex; gap: 10px;">
             <button class="btn" style="flex:1" onclick="exportSettings()">Code erzeugen</button>
             <button class="btn" style="flex:1; background: var(--accent);" onclick="importSettings()">Code laden</button>
         </div>
-
         <div id="fav-list-container"></div>
         <button class="btn" onclick="closeSettings()" style="background:#444; margin-top:20px;">Fertig</button>
         <input type="file" id="bgInput" style="display:none" accept="image/*" onchange="saveBg(this)">
@@ -111,28 +111,20 @@
             navZone.appendChild(s);
         });
 
-        // Vereinfachtes Backup-System
         function exportSettings() {
             const data = { favs: myFavorites, bg: localStorage.getItem('customBg') };
             document.getElementById('backupArea').value = btoa(unescape(encodeURIComponent(JSON.stringify(data))));
-            document.getElementById('backupArea').select();
-            alert("Code wurde erzeugt. Jetzt kopieren!");
+            alert("Code im Textfeld erzeugt!");
         }
 
         function importSettings() {
-            const code = document.getElementById('backupArea').value.trim();
-            if (!code) return;
             try {
+                const code = document.getElementById('backupArea').value.trim();
                 const data = JSON.parse(decodeURIComponent(escape(atob(code))));
-                myFavorites = data.favs;
-                localStorage.setItem('myFavorites', JSON.stringify(myFavorites));
-                if (data.bg) {
-                    localStorage.setItem('customBg', data.bg);
-                    document.body.style.backgroundImage = `url(${data.bg})`;
-                }
-                renderList(allAppsGlobal);
-                alert("Erfolgreich wiederhergestellt!");
-            } catch(e) { alert("Code ungültig!"); }
+                myFavorites = data.favs; localStorage.setItem('myFavorites', JSON.stringify(myFavorites));
+                if (data.bg) { localStorage.setItem('customBg', data.bg); document.body.style.backgroundImage = `url(${data.bg})`; }
+                renderList(allAppsGlobal); alert("Wiederhergestellt!");
+            } catch(e) { alert("Fehler beim Import!"); }
         }
 
         function handleSearch(q) {
@@ -153,7 +145,7 @@
             c.innerHTML = evs.length === 0 ? '<p>Keine Termine.</p>' : '';
             evs.forEach(e => {
                 const d = new Date(e.start); const div = document.createElement('div'); div.className = 'event-item';
-                div.innerHTML = `<div style="color:var(--text-sec); font-size:11px;">${d.toLocaleDateString('de-DE', {weekday:'short', day:'numeric'})} • ${e.allDay?'Ganztägig':d.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'})}</div><div>${e.title}</div>`;
+                div.innerHTML = `<div style="color:var(--text-sec); font-size:11px;">${d.toLocaleDateString('de-DE', {weekday:'short'})} • ${e.allDay?'Ganztägig':d.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</div><div>${e.title}</div>`;
                 c.appendChild(div);
             });
         };
@@ -182,10 +174,9 @@
             li.innerHTML = `<img class="app-icon" src="data:image/png;base64,${app.icon}"> <span>${app.name}</span>`;
             
             let timer;
-            li.ontouchstart = () => { timer = setTimeout(() => { if(window.AndroidBridge) AndroidBridge.openAppInfo(app.packageName); }, 700); };
+            li.ontouchstart = () => { timer = setTimeout(() => { if(window.AndroidBridge) AndroidBridge.openAppInfo(app.packageName); }, 800); };
             li.ontouchend = () => { clearTimeout(timer); };
-            li.onclick = () => { AndroidBridge.launchApp(app.packageName); setTimeout(resetToFavs, 800); };
-            
+            li.onclick = () => { AndroidBridge.launchApp(app.packageName); setTimeout(resetToFavs, 1000); };
             return li;
         }
 
@@ -196,8 +187,9 @@
             localStorage.setItem('myFavorites', JSON.stringify(myFavorites));
             renderSettingsList(); renderList(allAppsGlobal);
         }
+
         function renderSettingsList() {
-            const c = document.getElementById('fav-list-container'); c.innerHTML = '<h4 style="font-weight:300;margin-top:20px;color:var(--text-sec);">Favoriten wählen</h4>';
+            const c = document.getElementById('fav-list-container'); c.innerHTML = '<h4 style="font-weight:300;margin-top:20px;color:var(--text-sec);">Favoriten</h4>';
             allAppsGlobal.forEach(a => {
                 const is = myFavorites.includes(a.name); const r = document.createElement('div');
                 r.className = `fav-row ${is?'active':''}`; r.onclick = () => toggleFav(a.name);
@@ -205,6 +197,7 @@
                 c.appendChild(r);
             });
         }
+
         function openSettings() { renderSettingsList(); document.getElementById('settings-modal').style.display = 'flex'; }
         function closeSettings() { document.getElementById('settings-modal').style.display = 'none'; }
 
@@ -221,7 +214,6 @@
             };
             r.readAsDataURL(input.files[0]);
         }
-        function clearBg() { localStorage.removeItem('customBg'); document.body.style.backgroundImage = 'none'; }
 
         function applyWave(tX, tY) {
             const ls = document.querySelectorAll('.nav-letter');
@@ -238,12 +230,15 @@
 
         function handleScrub(e) {
             if (document.querySelector('.modal[style*="display: flex"]') || body.classList.contains('is-searching')) return;
+            e.preventDefault();
+            body.classList.remove('show-only-favs'); // DAS HAT GEFEHLT! Öffnet die Liste beim Berühren
             const t = e.touches[0]; applyWave(t.clientX, t.clientY);
             const b = navZone.getBoundingClientRect();
             let rY = Math.max(0, Math.min(0.99, (t.clientY - b.top) / b.height));
             const target = document.getElementById('header-' + chars[Math.floor(rY * chars.length)]);
             if (target) window.scrollTo(0, target.offsetTop - 100);
         }
+
         navZone.addEventListener('touchstart', handleScrub);
         navZone.addEventListener('touchmove', handleScrub);
         navZone.addEventListener('touchend', () => {
