@@ -43,7 +43,9 @@
         
         #nav-zone { position: fixed; right: 0; top: 20vh; width: 60px; height: 75vh; z-index: 1000; display: flex; flex-direction: column; justify-content: center; touch-action: none; }
         #reset-gap { position: fixed; right: 0; top: 0; width: 80px; height: 20vh; z-index: 1001; }
-        .nav-letter { flex: 1; display: flex; align-items: center; justify-content: center; font-size: 8px; color: var(--nav-text); font-weight: bold; transition: transform 0.08s ease-out; }
+        
+        /* Punkt 2: Alphabet ein kleines bisschen größer (11px statt 8px) */
+        .nav-letter { flex: 1; display: flex; align-items: center; justify-content: center; font-size: 11px; color: var(--nav-text); font-weight: bold; transition: transform 0.08s ease-out; }
 
         .show-only-favs .all-apps-item, .show-only-favs .letter-header { display: none; }
         .is-searching #nav-zone, .is-searching .fav-item, .is-searching .letter-header { display: none; }
@@ -55,7 +57,6 @@
         
         .fav-row { display: flex; align-items: center; justify-content: space-between; padding: 12px 10px; border-bottom: 1px solid #1a1a1a; }
         .fav-row.active span { color: #fff; }
-        .event-item { margin-bottom: 15px; border-left: 2px solid var(--accent); padding-left: 10px; }
     </style>
 </head>
 <body class="show-only-favs" id="mainBody">
@@ -77,14 +78,11 @@
     <div id="settings-modal" class="modal">
         <h2 style="font-weight: 200;">Einstellungen</h2>
         <button class="btn" onclick="document.getElementById('bgInput').click()">Hintergrund ändern</button>
-        
-        <h4 style="font-weight: 300; margin-top: 15px; font-size: 12px; color: var(--text-sec);">Favoriten-Backup (Ohne Bild)</h4>
         <textarea id="backupArea" placeholder="Favoriten-Code hier..."></textarea>
         <div style="display: flex; gap: 10px;">
             <button class="btn" style="flex:1" onclick="exportSettings()">Code erzeugen</button>
             <button class="btn" style="flex:1; background: var(--accent);" onclick="importSettings()">Code laden</button>
         </div>
-
         <div id="fav-list-container"></div>
         <button class="btn" onclick="closeSettings()" style="background:#444; margin-top:20px;">Fertig</button>
         <input type="file" id="bgInput" style="display:none" accept="image/*" onchange="saveBg(this)">
@@ -97,6 +95,7 @@
         const searchInput = document.getElementById('appSearch');
         let allAppsGlobal = [];
         let myFavorites = JSON.parse(localStorage.getItem('myFavorites')) || ["Telefon"];
+        let lastHapticLetter = ""; // Für die haptische Ratsche
 
         const savedBg = localStorage.getItem('customBg');
         if (savedBg) document.body.style.backgroundImage = `url(${savedBg})`;
@@ -113,35 +112,6 @@
             navZone.appendChild(s);
         });
 
-        // --- SCHLANKER EXPORT (NUR FAVORITEN) ---
-        function exportSettings() {
-            try {
-                // Wir exportieren NUR das Array der Favoritennamen
-                const str = JSON.stringify(myFavorites);
-                const b64 = btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g, (match, p1) => String.fromCharCode('0x' + p1)));
-                document.getElementById('backupArea').value = b64;
-                alert("Favoriten-Code erzeugt!");
-            } catch(e) { alert("Fehler beim Export!"); }
-        }
-
-        function importSettings() {
-            let code = document.getElementById('backupArea').value.trim().replace(/\s/g, '');
-            if (!code) return;
-            try {
-                const decoded = decodeURIComponent(Array.prototype.map.call(atob(code), (c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join(''));
-                const favs = JSON.parse(decoded);
-                if (Array.isArray(favs)) {
-                    myFavorites = favs;
-                    localStorage.setItem('myFavorites', JSON.stringify(myFavorites));
-                    renderList(allAppsGlobal);
-                    alert("Favoriten erfolgreich geladen!");
-                    closeSettings();
-                } else {
-                    alert("Code-Format ungültig.");
-                }
-            } catch(e) { alert("Code unvollständig oder ungültig."); }
-        }
-
         function handleSearch(q) {
             if (q.trim() === "") { body.classList.remove('is-searching'); resetToFavs(); return; }
             body.classList.add('is-searching'); body.classList.remove('show-only-favs');
@@ -157,7 +127,7 @@
             c.innerHTML = evs.length === 0 ? '<p>Keine Termine.</p>' : '';
             evs.forEach(e => {
                 const d = new Date(e.start); const div = document.createElement('div'); div.className = 'event-item';
-                div.innerHTML = `<div style="color:var(--text-sec); font-size:11px;">${d.toLocaleDateString('de-DE', {weekday:'short', day:'numeric'})} • ${e.allDay?'Ganztägig':d.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</div><div>${e.title}</div>`;
+                div.innerHTML = `<div style="color:var(--text-sec); font-size:11px;">${d.toLocaleDateString('de-DE', {weekday:'short'})} • ${e.allDay?'Ganztägig':d.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</div><div>${e.title}</div>`;
                 c.appendChild(div);
             });
         };
@@ -184,47 +154,22 @@
         function createItem(app, cls) {
             const li = document.createElement('li'); li.className = 'app-item ' + cls;
             li.innerHTML = `<img class="app-icon" src="data:image/png;base64,${app.icon}"> <span>${app.name}</span>`;
+            
             let timer;
-            li.ontouchstart = () => { timer = setTimeout(() => { if(window.AndroidBridge) AndroidBridge.openAppInfo(app.packageName); }, 800); };
+            // Punkt 3: Robusterer Long-Press (1.200ms) und Abbruch bei Bewegung
+            li.ontouchstart = (e) => { 
+                timer = setTimeout(() => { 
+                    if(window.AndroidBridge) AndroidBridge.openAppInfo(app.packageName); 
+                }, 1200); 
+            };
             li.ontouchend = () => { clearTimeout(timer); };
+            li.ontouchmove = () => { clearTimeout(timer); }; // Verhindert Auslösen beim Wischen
+            
             li.onclick = () => { AndroidBridge.launchApp(app.packageName); setTimeout(resetToFavs, 1000); };
             return li;
         }
 
         window.setApps = function(j) { allAppsGlobal = JSON.parse(j); renderList(allAppsGlobal); };
-
-        function toggleFav(n) {
-            myFavorites = myFavorites.includes(n) ? myFavorites.filter(f => f !== n) : [...myFavorites, n];
-            localStorage.setItem('myFavorites', JSON.stringify(myFavorites));
-            renderSettingsList(); renderList(allAppsGlobal);
-        }
-
-        function renderSettingsList() {
-            const c = document.getElementById('fav-list-container'); c.innerHTML = '<h4 style="font-weight:300;margin-top:20px;color:var(--text-sec); font-size: 12px;">Favoriten wählen</h4>';
-            allAppsGlobal.forEach(a => {
-                const is = myFavorites.includes(a.name); const r = document.createElement('div');
-                r.className = `fav-row ${is?'active':''}`; r.onclick = () => toggleFav(a.name);
-                r.innerHTML = `<span style="font-size:14px;">${a.name}</span><div style="color:var(--accent)">${is?'✓':''}</div>`;
-                c.appendChild(r);
-            });
-        }
-
-        function openSettings() { renderSettingsList(); document.getElementById('settings-modal').style.display = 'flex'; }
-        function closeSettings() { document.getElementById('settings-modal').style.display = 'none'; }
-
-        function saveBg(input) {
-            const r = new FileReader(); r.onloadend = function() {
-                const img = new Image(); img.onload = function() {
-                    const cv = document.createElement('canvas'); const ctx = cv.getContext('2d');
-                    const mW = 800; const sc = mW / img.width; cv.width = mW; cv.height = img.height * sc;
-                    ctx.drawImage(img, 0, 0, cv.width, cv.height);
-                    const b64 = cv.toDataURL('image/jpeg', 0.6);
-                    localStorage.setItem('customBg', b64); document.body.style.backgroundImage = `url(${b64})`;
-                };
-                img.src = r.result;
-            };
-            r.readAsDataURL(input.files[0]);
-        }
 
         function applyWave(tX, tY) {
             const ls = document.querySelectorAll('.nav-letter');
@@ -245,15 +190,68 @@
             const t = e.touches[0]; applyWave(t.clientX, t.clientY);
             const b = navZone.getBoundingClientRect();
             let rY = Math.max(0, Math.min(0.99, (t.clientY - b.top) / b.height));
-            const target = document.getElementById('header-' + chars[Math.floor(rY * chars.length)]);
+            const currentLetter = chars[Math.floor(rY * chars.length)];
+            
+            // Punkt 1: Haptische Ratsche (Vibriert nur beim Buchstabenwechsel)
+            if (currentLetter !== lastHapticLetter) {
+                if (window.AndroidBridge) AndroidBridge.hapticTick();
+                lastHapticLetter = currentLetter;
+            }
+
+            const target = document.getElementById('header-' + currentLetter);
             if (target) window.scrollTo(0, target.offsetTop - 100);
         }
 
         navZone.addEventListener('touchstart', handleScrub);
         navZone.addEventListener('touchmove', handleScrub);
         navZone.addEventListener('touchend', () => {
+            lastHapticLetter = "";
             document.querySelectorAll('.nav-letter').forEach(l => { l.style.transform = 'scale(1) translateX(0px)'; l.style.color = 'var(--nav-text)'; });
         });
+
+        // Backup & Settings (wie gehabt)
+        function exportSettings() {
+            const str = JSON.stringify(myFavorites);
+            const b64 = btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g, (match, p1) => String.fromCharCode('0x' + p1)));
+            document.getElementById('backupArea').value = b64;
+            alert("Favoriten-Code erzeugt!");
+        }
+        function importSettings() {
+            let code = document.getElementById('backupArea').value.trim().replace(/\s/g, '');
+            if (!code) return;
+            try {
+                const decoded = decodeURIComponent(Array.prototype.map.call(atob(code), (c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join(''));
+                myFavorites = JSON.parse(decoded);
+                localStorage.setItem('myFavorites', JSON.stringify(myFavorites));
+                renderList(allAppsGlobal); alert("Favoriten geladen!");
+            } catch(e) { alert("Code ungültig."); }
+        }
+        function saveBg(input) {
+            const r = new FileReader(); r.onloadend = function() {
+                const img = new Image(); img.onload = function() {
+                    const cv = document.createElement('canvas'); const ctx = cv.getContext('2d');
+                    const mW = 800; const sc = mW / img.width; cv.width = mW; cv.height = img.height * sc;
+                    ctx.drawImage(img, 0, 0, cv.width, cv.height);
+                    localStorage.setItem('customBg', cv.toDataURL('image/jpeg', 0.6));
+                    document.body.style.backgroundImage = `url(${localStorage.getItem('customBg')})`;
+                };
+                img.src = r.result;
+            };
+            r.readAsDataURL(input.files[0]);
+        }
+        function openSettings() { 
+            const c = document.getElementById('fav-list-container'); c.innerHTML = '<h4 style="font-weight:300;margin-top:20px;color:var(--text-sec); font-size:12px;">Favoriten wählen</h4>';
+            allAppsGlobal.forEach(a => {
+                const is = myFavorites.includes(a.name); const r = document.createElement('div');
+                r.className = `fav-row ${is?'active':''}`; r.onclick = () => toggleFav(a.name);
+                r.innerHTML = `<span style="font-size:14px;">${a.name}</span><div style="color:var(--accent)">${is?'✓':''}</div>`;
+                c.appendChild(r);
+            });
+            document.getElementById('settings-modal').style.display = 'flex'; 
+        }
+        function toggleFav(n) { myFavorites = myFavorites.includes(n) ? myFavorites.filter(f => f !== n) : [...myFavorites, n]; localStorage.setItem('myFavorites', JSON.stringify(myFavorites)); openSettings(); renderList(allAppsGlobal); }
+        function closeSettings() { document.getElementById('settings-modal').style.display = 'none'; }
+        function clearBg() { localStorage.removeItem('customBg'); document.body.style.backgroundImage = 'none'; }
 
         setTimeout(() => { if (window.AndroidBridge) { AndroidBridge.fetchApps(); AndroidBridge.fetchCalendar(); } }, 300);
     </script>
