@@ -14,26 +14,40 @@
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; outline: none; }
         
         body {
-            background-color: #000; background-size: cover; background-position: center;
-            background-attachment: fixed; color: var(--text-main); font-family: sans-serif;
-            margin: 0; padding: calc(env(safe-area-inset-top) + 30px) 70px 300px 25px;
-            min-height: 100vh; overflow-x: hidden; user-select: none;
+            /* Hintergrund-Farbe auf Schwarz setzen, falls das Bild lädt */
+            background-color: #000; 
+            background-size: cover; 
+            background-position: center;
+            background-attachment: fixed; 
+            color: var(--text-main); 
+            font-family: sans-serif;
+            margin: 0; 
+            /* Abstände für Safe-Area und Alphabet-Navi */
+            padding: calc(env(safe-area-inset-top) + 30px) 70px 300px 25px;
+            min-height: 100vh; 
+            overflow-x: hidden; 
+            user-select: none;
         }
 
-        body::before {
-            content: ""; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.5); z-index: -1;
-        }
+        /* --- DAS OVERLAY WURDE HIER ENTFERNT --- */
 
         #top-zone { margin-bottom: 15px; z-index: 100; position: relative; }
         .clock { font-size: 54px; font-weight: 200; margin-bottom: 0px; cursor: pointer; }
         .date { font-size: 13px; color: var(--text-sec); text-transform: uppercase; letter-spacing: 1.2px; margin-bottom: 20px; cursor: pointer; }
         
         #appSearch {
-            width: 100%; background: rgba(255,255,255,0.08); border: none;
-            border-radius: 10px; padding: 10px 15px; color: #fff; font-size: 16px;
-            backdrop-filter: blur(10px); margin-bottom: 20px;
+            width: 100%; 
+            /* Ein leichter Glas-Effekt für die Suchleiste bleibt */
+            background: rgba(255,255,255,0.12); 
+            border: none;
+            border-radius: 10px; 
+            padding: 10px 15px; 
+            color: #fff; 
+            font-size: 16px;
+            backdrop-filter: blur(10px); 
+            margin-bottom: 20px;
         }
+        #appSearch::placeholder { color: rgba(255,255,255,0.5); }
 
         .app-list { list-style: none; padding: 0; margin: 0; position: relative; z-index: 10; }
         .app-item { padding: 8px 0; font-size: 17px; font-weight: 300; display: flex; align-items: center; gap: 12px; }
@@ -44,7 +58,6 @@
         #nav-zone { position: fixed; right: 0; top: 20vh; width: 60px; height: 75vh; z-index: 1000; display: flex; flex-direction: column; justify-content: center; touch-action: none; }
         #reset-gap { position: fixed; right: 0; top: 0; width: 80px; height: 20vh; z-index: 1001; }
         
-        /* Punkt 2: Alphabet ein kleines bisschen größer (11px statt 8px) */
         .nav-letter { flex: 1; display: flex; align-items: center; justify-content: center; font-size: 11px; color: var(--nav-text); font-weight: bold; transition: transform 0.08s ease-out; }
 
         .show-only-favs .all-apps-item, .show-only-favs .letter-header { display: none; }
@@ -57,6 +70,7 @@
         
         .fav-row { display: flex; align-items: center; justify-content: space-between; padding: 12px 10px; border-bottom: 1px solid #1a1a1a; }
         .fav-row.active span { color: #fff; }
+        .event-item { margin-bottom: 15px; border-left: 2px solid var(--accent); padding-left: 10px; }
     </style>
 </head>
 <body class="show-only-favs" id="mainBody">
@@ -95,7 +109,6 @@
         const searchInput = document.getElementById('appSearch');
         let allAppsGlobal = [];
         let myFavorites = JSON.parse(localStorage.getItem('myFavorites')) || ["Telefon"];
-        let lastHapticLetter = ""; // Für die haptische Ratsche
 
         const savedBg = localStorage.getItem('customBg');
         if (savedBg) document.body.style.backgroundImage = `url(${savedBg})`;
@@ -156,14 +169,13 @@
             li.innerHTML = `<img class="app-icon" src="data:image/png;base64,${app.icon}"> <span>${app.name}</span>`;
             
             let timer;
-            // Punkt 3: Robusterer Long-Press (1.200ms) und Abbruch bei Bewegung
             li.ontouchstart = (e) => { 
                 timer = setTimeout(() => { 
                     if(window.AndroidBridge) AndroidBridge.openAppInfo(app.packageName); 
                 }, 1200); 
             };
             li.ontouchend = () => { clearTimeout(timer); };
-            li.ontouchmove = () => { clearTimeout(timer); }; // Verhindert Auslösen beim Wischen
+            li.ontouchmove = () => { clearTimeout(timer); }; 
             
             li.onclick = () => { AndroidBridge.launchApp(app.packageName); setTimeout(resetToFavs, 1000); };
             return li;
@@ -190,26 +202,16 @@
             const t = e.touches[0]; applyWave(t.clientX, t.clientY);
             const b = navZone.getBoundingClientRect();
             let rY = Math.max(0, Math.min(0.99, (t.clientY - b.top) / b.height));
-            const currentLetter = chars[Math.floor(rY * chars.length)];
-            
-            // Punkt 1: Haptische Ratsche (Vibriert nur beim Buchstabenwechsel)
-            if (currentLetter !== lastHapticLetter) {
-                if (window.AndroidBridge) AndroidBridge.hapticTick();
-                lastHapticLetter = currentLetter;
-            }
-
-            const target = document.getElementById('header-' + currentLetter);
+            const target = document.getElementById('header-' + chars[Math.floor(rY * chars.length)]);
             if (target) window.scrollTo(0, target.offsetTop - 100);
         }
 
         navZone.addEventListener('touchstart', handleScrub);
         navZone.addEventListener('touchmove', handleScrub);
         navZone.addEventListener('touchend', () => {
-            lastHapticLetter = "";
             document.querySelectorAll('.nav-letter').forEach(l => { l.style.transform = 'scale(1) translateX(0px)'; l.style.color = 'var(--nav-text)'; });
         });
 
-        // Backup & Settings (wie gehabt)
         function exportSettings() {
             const str = JSON.stringify(myFavorites);
             const b64 = btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g, (match, p1) => String.fromCharCode('0x' + p1)));
@@ -232,8 +234,8 @@
                     const cv = document.createElement('canvas'); const ctx = cv.getContext('2d');
                     const mW = 800; const sc = mW / img.width; cv.width = mW; cv.height = img.height * sc;
                     ctx.drawImage(img, 0, 0, cv.width, cv.height);
-                    localStorage.setItem('customBg', cv.toDataURL('image/jpeg', 0.6));
-                    document.body.style.backgroundImage = `url(${localStorage.getItem('customBg')})`;
+                    const b64 = cv.toDataURL('image/jpeg', 0.6);
+                    localStorage.setItem('customBg', b64); document.body.style.backgroundImage = `url(${b64})`;
                 };
                 img.src = r.result;
             };
@@ -251,7 +253,6 @@
         }
         function toggleFav(n) { myFavorites = myFavorites.includes(n) ? myFavorites.filter(f => f !== n) : [...myFavorites, n]; localStorage.setItem('myFavorites', JSON.stringify(myFavorites)); openSettings(); renderList(allAppsGlobal); }
         function closeSettings() { document.getElementById('settings-modal').style.display = 'none'; }
-        function clearBg() { localStorage.removeItem('customBg'); document.body.style.backgroundImage = 'none'; }
 
         setTimeout(() => { if (window.AndroidBridge) { AndroidBridge.fetchApps(); AndroidBridge.fetchCalendar(); } }, 300);
     </script>
