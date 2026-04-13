@@ -37,14 +37,16 @@ jobs:
           npx cap add android
           MANIFEST="android/app/src/main/AndroidManifest.xml"
           sed -i '/<application/i <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" />' $MANIFEST
-          sed -i '/<application/i <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />' $MANIFEST
           sed -i '/<application/i <uses-permission android:name="android.permission.READ_CALENDAR" />' $MANIFEST
           sed -i '/<application/i <uses-permission android:name="android.permission.VIBRATE" />' $MANIFEST
+          sed -i '/<application/i <uses-permission android:name="com.android.launcher.permission.INSTALL_SHORTCUT" />' $MANIFEST
           sed -i '/<category android:name="android.intent.category.LAUNCHER" \/>/a <category android:name="android.intent.category.HOME" />\n<category android:name="android.intent.category.DEFAULT" />' $MANIFEST
           
+          # Shortcut Receiver in Manifest einbauen
+          sed -i '/<\/activity>/a <receiver android:name=".MainActivity$ShortcutReceiver" android:permission="com.android.launcher.permission.INSTALL_SHORTCUT" android:exported="true"><intent-filter><action android:name="com.android.launcher.action.INSTALL_SHORTCUT" /></intent-filter></receiver>' $MANIFEST
+
           cat <<EOF > android/app/src/main/java/com/rakusoft/slowlauncher/MainActivity.java
           package com.rakusoft.slowlauncher;
-          import android.content.ContentResolver;
           import android.content.ContentUris;
           import android.content.Context;
           import android.content.Intent;
@@ -65,8 +67,6 @@ jobs:
           import android.view.Window;
           import android.view.WindowManager;
           import android.webkit.JavascriptInterface;
-          import android.webkit.ValueCallback;
-          import android.webkit.WebChromeClient;
           import android.webkit.WebView;
           import com.getcapacitor.BridgeActivity;
           import org.json.JSONArray;
@@ -76,96 +76,127 @@ jobs:
           import java.util.Collections;
 
           public class MainActivity extends BridgeActivity {
+              private WebView webView;
+
+              public static class ShortcutReceiver extends android.content.BroadcastReceiver {
+                  @Override
+                  public void onReceive(Context context, Intent intent) {
+                      if ("com.android.launcher.action.INSTALL_SHORTCUT".equals(intent.getAction())) {
+                          String name = intent.getStringExtra(Intent.EXTRA_SHORTCUT_NAME);
+                          Intent target = intent.getParcelableExtra(Intent.EXTRA_SHORTCUT_INTENT);
+                          if (name != null && target != null) {
+                              android.content.SharedPreferences p = context.getSharedPreferences("Shortcuts", Context.MODE_PRIVATE);
+                              try {
+                                  JSONArray a = new JSONArray(p.getString("list", "[]"));
+                                  JSONObject o = new JSONObject();
+                                  o.put("name", name);
+                                  o.put("uri", target.toUri(0));
+                                  a.put(o);
+                                  p.edit().putString("list", a.toString()).apply();
+                              } catch (Exception e) {}
+                          }
+                      }
+                  }
+              }
+
               @Override
               public void onCreate(Bundle savedInstanceState) {
                   super.onCreate(savedInstanceState);
                   Window w = getWindow();
                   w.setFlags(WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS, WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS);
-                  w.setStatusBarColor(Color.TRANSPARENT);
-                  w.setNavigationBarColor(Color.TRANSPARENT);
-
-                  WebView webView = this.getBridge().getWebView();
+                  webView = this.getBridge().getWebView();
                   webView.getSettings().setJavaScriptEnabled(true);
                   webView.setBackgroundColor(Color.TRANSPARENT);
-                  
-                  final Vibrator vibrator = (Vibrator) getSystemService(Context.VIBRATOR_SERVICE);
+                  final Vibrator vib = (Vibrator) getSystemService(Context.VIBRATOR_SERVICE);
 
                   webView.addJavascriptInterface(new Object() {
                       @JavascriptInterface
                       public void hapticTick() {
-                          if (vibrator != null && vibrator.hasVibrator()) {
+                          if (vib != null && vib.hasVibrator()) {
                               if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                                  vibrator.vibrate(VibrationEffect.createOneShot(15, VibrationEffect.DEFAULT_AMPLITUDE));
-                              } else {
-                                  vibrator.vibrate(15);
-                              }
+                                  vib.vibrate(VibrationEffect.createOneShot(15, VibrationEffect.DEFAULT_AMPLITUDE));
+                              } else { vib.vibrate(15); }
                           }
                       }
 
                       @JavascriptInterface
                       public void fetchApps() {
                           try {
-                              Intent mainIntent = new Intent(Intent.ACTION_MAIN, null);
-                              mainIntent.addCategory(Intent.CATEGORY_LAUNCHER);
-                              List<ResolveInfo> pkgAppsList = getPackageManager().queryIntentActivities(mainIntent, 0);
-                              Collections.sort(pkgAppsList, (a, b) -> a.loadLabel(getPackageManager()).toString().compareToIgnoreCase(b.loadLabel(getPackageManager()).toString()));
+                              Intent i = new Intent(Intent.ACTION_MAIN, null);
+                              i.addCategory(Intent.CATEGORY_LAUNCHER);
+                              List<ResolveInfo> l = getPackageManager().queryIntentActivities(i, 0);
+                              Collections.sort(l, (a, b) -> a.loadLabel(getPackageManager()).toString().compareToIgnoreCase(b.loadLabel(getPackageManager()).toString()));
                               JSONArray apps = new JSONArray();
-                              for (ResolveInfo ad : pkgAppsList) {
+                              for (ResolveInfo ad : l) {
                                   JSONObject app = new JSONObject();
                                   app.put("name", ad.loadLabel(getPackageManager()).toString());
                                   app.put("packageName", ad.activityInfo.packageName);
                                   Drawable icon = ad.loadIcon(getPackageManager());
-                                  Bitmap bitmap = Bitmap.createBitmap(icon.getIntrinsicWidth(), icon.getIntrinsicHeight(), Bitmap.Config.ARGB_8888);
-                                  Canvas canvas = new Canvas(bitmap);
-                                  icon.setBounds(0, 0, canvas.getWidth(), canvas.getHeight());
-                                  icon.draw(canvas);
-                                  ByteArrayOutputStream stream = new ByteArrayOutputStream();
-                                  bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream);
-                                  app.put("icon", Base64.encodeToString(stream.toByteArray(), Base64.NO_WRAP));
+                                  Bitmap b = Bitmap.createBitmap(icon.getIntrinsicWidth(), icon.getIntrinsicHeight(), Bitmap.Config.ARGB_8888);
+                                  icon.setBounds(0, 0, b.getWidth(), b.getHeight());
+                                  icon.draw(new Canvas(b));
+                                  ByteArrayOutputStream s = new ByteArrayOutputStream();
+                                  b.compress(Bitmap.CompressFormat.PNG, 100, s);
+                                  app.put("icon", Base64.encodeToString(s.toByteArray(), Base64.NO_WRAP));
                                   apps.put(app);
                               }
-                              final String json = apps.toString();
-                              runOnUiThread(() -> webView.evaluateJavascript("setApps('" + json.replace("'", "\\\\'") + "')", null));
+                              final String res = apps.toString();
+                              runOnUiThread(() -> webView.evaluateJavascript("setApps('" + res.replace("'", "\\\\'") + "')", null));
                           } catch (Exception e) {}
                       }
 
                       @JavascriptInterface
-                      public void openAppInfo(String packageName) {
-                          Intent intent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
-                          intent.setData(Uri.parse("package:" + packageName));
-                          startActivity(intent);
+                      public void fetchShortcuts() {
+                          android.content.SharedPreferences p = getSharedPreferences("Shortcuts", Context.MODE_PRIVATE);
+                          final String s = p.getString("list", "[]");
+                          runOnUiThread(() -> webView.evaluateJavascript("setShortcuts('" + s.replace("'", "\\\\'") + "')", null));
+                      }
+
+                      @JavascriptInterface
+                      public void launchShortcut(String uri) {
+                          try {
+                              Intent i = Intent.parseUri(uri, 0);
+                              i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                              startActivity(i);
+                          } catch (Exception e) {}
+                      }
+
+                      @JavascriptInterface
+                      public void clearShortcuts() {
+                          getSharedPreferences("Shortcuts", Context.MODE_PRIVATE).edit().clear().apply();
+                      }
+
+                      @JavascriptInterface
+                      public void openAppInfo(String p) {
+                          Intent i = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+                          i.setData(Uri.parse("package:" + p));
+                          startActivity(i);
                       }
 
                       @JavascriptInterface
                       public void fetchCalendar() {
                           try {
-                              long now = System.currentTimeMillis();
-                              long later = now + (7L * 24 * 60 * 60 * 1000);
-                              Uri.Builder builder = CalendarContract.Instances.CONTENT_URI.buildUpon();
-                              ContentUris.appendId(builder, now);
-                              ContentUris.appendId(builder, later);
-                              String[] proj = new String[]{CalendarContract.Instances.TITLE, CalendarContract.Instances.BEGIN, CalendarContract.Instances.ALL_DAY};
-                              Cursor cursor = getContentResolver().query(builder.build(), proj, null, null, CalendarContract.Instances.BEGIN + " ASC");
-                              JSONArray events = new JSONArray();
-                              if (cursor != null) {
-                                  while (cursor.moveToNext()) {
-                                      JSONObject ev = new JSONObject();
-                                      ev.put("title", cursor.getString(0));
-                                      ev.put("start", cursor.getLong(1));
-                                      ev.put("allDay", cursor.getInt(2) == 1);
-                                      events.put(ev);
-                                  }
-                                  cursor.close();
+                              long n = System.currentTimeMillis();
+                              Uri.Builder b = CalendarContract.Instances.CONTENT_URI.buildUpon();
+                              ContentUris.appendId(b, n);
+                              ContentUris.appendId(b, n + (7L * 24 * 60 * 60 * 1000));
+                              Cursor cur = getContentResolver().query(b.build(), new String[]{"title", "begin", "allDay"}, null, null, "begin ASC");
+                              JSONArray evs = new JSONArray();
+                              while (cur != null && cur.moveToNext()) {
+                                  JSONObject e = new JSONObject();
+                                  e.put("title", cur.getString(0)); e.put("start", cur.getLong(1)); e.put("allDay", cur.getInt(2)==1);
+                                  evs.put(e);
                               }
-                              final String json = events.toString();
-                              runOnUiThread(() -> webView.evaluateJavascript("setCalendar('" + json.replace("'", "\\\\'") + "')", null));
+                              if(cur != null) cur.close();
+                              final String res = evs.toString();
+                              runOnUiThread(() -> webView.evaluateJavascript("setCalendar('" + res.replace("'", "\\\\'") + "')", null));
                           } catch (Exception e) {}
                       }
 
                       @JavascriptInterface
-                      public void launchApp(String packageName) {
-                          Intent intent = getPackageManager().getLaunchIntentForPackage(packageName);
-                          if (intent != null) startActivity(intent);
+                      public void launchApp(String p) {
+                          Intent i = getPackageManager().getLaunchIntentForPackage(p);
+                          if (i != null) startActivity(i);
                       }
                   }, "AndroidBridge");
               }
