@@ -17,22 +17,21 @@
             margin: 0; padding: calc(env(safe-area-inset-top) + 30px) 70px 300px 25px;
             min-height: 100vh; overflow-x: hidden; user-select: none;
         }
-        /* Overlay entfernt für maximale Brillanz */
+        /* Overlay ist weg - Pure Brillanz */
         #top-zone { margin-bottom: 15px; z-index: 100; position: relative; }
         .clock { font-size: 54px; font-weight: 200; margin-bottom: 0px; cursor: pointer; }
         .date { font-size: 13px; color: var(--text-sec); text-transform: uppercase; letter-spacing: 1.2px; margin-bottom: 20px; cursor: pointer; }
         #appSearch {
-            width: 100%; background: rgba(255,255,255,0.12); border: none;
+            width: 100%; background: rgba(255,255,255,0.15); border: none;
             border-radius: 10px; padding: 10px 15px; color: #fff; font-size: 16px;
-            backdrop-filter: blur(10px); margin-bottom: 20px;
+            backdrop-filter: blur(12px); margin-bottom: 20px;
         }
         .app-list { list-style: none; padding: 0; margin: 0; position: relative; z-index: 10; }
-        .app-item { padding: 8px 0; font-size: 17px; font-weight: 300; display: flex; align-items: center; gap: 12px; }
-        .app-icon { width: 26px; height: 26px; border-radius: 6px; filter: grayscale(100%); opacity: 0.7; }
-        .shortcut-icon { font-size: 18px; width: 26px; text-align: center; opacity: 0.8; }
-        .header { color: var(--text-sec); font-size: 11px; margin-top: 25px; font-weight: bold; text-transform: uppercase; scroll-margin-top: 100px; }
+        .app-item { padding: 9px 0; font-size: 17px; font-weight: 300; display: flex; align-items: center; gap: 12px; }
+        .app-icon { width: 26px; height: 26px; border-radius: 6px; filter: grayscale(100%); opacity: 0.8; }
+        .shortcut-icon { font-size: 18px; width: 26px; text-align: center; opacity: 0.9; }
+        .header { color: var(--text-sec); font-size: 11px; margin-top: 30px; font-weight: bold; text-transform: uppercase; scroll-margin-top: 100px; }
         #nav-zone { position: fixed; right: 0; top: 20vh; width: 60px; height: 75vh; z-index: 1000; display: flex; flex-direction: column; justify-content: center; touch-action: none; }
-        #reset-gap { position: fixed; right: 0; top: 0; width: 80px; height: 20vh; z-index: 1001; }
         .nav-letter { flex: 1; display: flex; align-items: center; justify-content: center; font-size: 11px; color: var(--nav-text); font-weight: bold; transition: transform 0.08s ease-out; }
         .show-only-favs .all-apps-item, .show-only-favs .letter-header { display: none; }
         .is-searching #nav-zone, .is-searching .fav-item, .is-searching .letter-header, .is-searching .shortcut-item { display: none; }
@@ -45,7 +44,6 @@
     </style>
 </head>
 <body class="show-only-favs" id="mainBody">
-    <div id="reset-gap" onclick="resetToFavs()"></div>
     <div id="top-zone">
         <div class="clock" id="clock" onclick="resetToFavs()">00:00</div>
         <div class="date" id="date" onclick="openCalendar()">Lade...</div>
@@ -57,14 +55,14 @@
     <div id="settings-modal" class="modal">
         <h2 style="font-weight: 200;">Optionen</h2>
         <button class="btn" onclick="document.getElementById('bgInput').click()">Hintergrund ändern</button>
-        <button class="btn" onclick="if(confirm('Alle Verknüpfungen löschen?')) { AndroidBridge.clearShortcuts(); location.reload(); }">Datei-Shortcuts leeren</button>
-        <textarea id="backupArea" placeholder="Favoriten-Code..."></textarea>
+        <button class="btn" onclick="if(confirm('Verknüpfungen wirklich leeren?')) { AndroidBridge.clearShortcuts(); location.reload(); }">Shortcuts leeren</button>
+        <textarea id="backupArea" placeholder="Backup-Code..."></textarea>
         <div style="display: flex; gap: 10px;">
             <button class="btn" style="flex:1" onclick="exportSettings()">Export</button>
             <button class="btn" style="flex:1; background: var(--accent);" onclick="importSettings()">Import</button>
         </div>
         <div id="fav-list-container"></div>
-        <button class="btn" onclick="closeSettings()" style="background:#444; margin-top:20px;">Fertig</button>
+        <button class="btn" onclick="closeSettings()" style="background:#444; margin-top:20px;">Schließen</button>
         <input type="file" id="bgInput" style="display:none" accept="image/*" onchange="saveBg(this)">
     </div>
 
@@ -98,27 +96,31 @@
             navZone.appendChild(s);
         });
 
-        window.setShortcuts = function(j) { myShortcuts = JSON.parse(j); renderList(allAppsGlobal); };
+        window.setShortcuts = function(j) { 
+            myShortcuts = JSON.parse(j); 
+            renderList(allAppsGlobal); 
+        };
 
         function renderList(apps, filter = false) {
             const l = document.getElementById('appList'); l.innerHTML = '';
             if (!filter) {
-                // Apps
+                // 1. Favoriten
                 apps.filter(a => myFavorites.includes(a.name)).forEach(a => l.appendChild(createItem(a, "fav-item")));
                 
-                // Dateien / MP3s
+                // 2. Verknüpfungen (MP3, Chrome etc.)
                 if (myShortcuts.length > 0) {
-                    const h = document.createElement('li'); h.className = 'header fav-item'; h.innerText = "Dateien & Verknüpfungen";
+                    const h = document.createElement('li'); h.className = 'header fav-item'; h.innerText = "Shortcuts";
                     l.appendChild(h);
-                    myShortcuts.forEach(s => {
+                    myShortcuts.forEach((s, index) => {
                         const li = document.createElement('li'); li.className = 'app-item fav-item shortcut-item';
-                        const icon = s.name.toLowerCase().endsWith('.mp3') ? '🎵' : '📄';
-                        li.innerHTML = `<span class="shortcut-icon">${icon}</span> <span>${s.name}</span>`;
+                        const isMp3 = s.name.toLowerCase().endsWith('.mp3');
+                        li.innerHTML = `<span class="shortcut-icon">${isMp3 ? '🎵' : '🔗'}</span> <span>${s.name}</span>`;
                         li.onclick = () => AndroidBridge.launchShortcut(s.uri);
                         l.appendChild(li);
                     });
                 }
 
+                // 3. Optionen
                 const opt = document.createElement('li'); opt.className = 'app-item fav-item'; opt.style.color = 'var(--text-sec)';
                 opt.innerHTML = `<span style="font-size:20px;width:26px;text-align:center;">⚙</span> <span style="font-size:15px;">Optionen</span>`;
                 opt.onclick = openSettings; l.appendChild(opt);
@@ -154,16 +156,16 @@
         }
         function resetToFavs() { searchInput.value = ""; body.classList.remove('is-searching'); body.classList.add('show-only-favs'); window.scrollTo(0, 0); renderList(allAppsGlobal); }
 
-        // Settings & Backup
+        // Settings & Navigation (unverändert)
         function exportSettings() {
             const b64 = btoa(encodeURIComponent(JSON.stringify(myFavorites)).replace(/%([0-9A-F]{2})/g, (m, p) => String.fromCharCode('0x' + p)));
-            document.getElementById('backupArea').value = b64; alert("Favoriten-Code erzeugt!");
+            document.getElementById('backupArea').value = b64; alert("Exportiert!");
         }
         function importSettings() {
             try {
                 const dec = decodeURIComponent(Array.prototype.map.call(atob(document.getElementById('backupArea').value.trim().replace(/\s/g, '')), (c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join(''));
                 myFavorites = JSON.parse(dec); localStorage.setItem('myFavorites', JSON.stringify(myFavorites));
-                renderList(allAppsGlobal); alert("Geladen!"); closeSettings();
+                renderList(allAppsGlobal); alert("Importiert!"); closeSettings();
             } catch(e) { alert("Fehler!"); }
         }
         function saveBg(input) {
@@ -204,8 +206,6 @@
                 c.appendChild(div);
             });
         };
-
-        // Navigation
         function applyWave(tX, tY) {
             const ls = document.querySelectorAll('.nav-letter');
             const hF = Math.max(0.3, Math.min(1.0, (window.innerWidth - tX) / 120)); 
